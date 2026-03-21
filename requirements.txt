@@ -1,0 +1,17 @@
+# 核心依赖
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+websockets>=12.0
+
+# HTTP 客户端（爬虫）
+httpx>=0.27.0
+
+# HTML 解析
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+
+# 数据库
+sqlalchemy>=2.0.0
+
+# 其他工具
+python-multipart>=0.0.9

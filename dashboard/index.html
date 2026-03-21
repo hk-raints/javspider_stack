@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JavBus Spider · 三省六部制</title>
+<style>
+/* ===== 基础重置 ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #222536;
+  --border: #2e3349;
+  --text: #e2e8f0;
+  --text-muted: #7c8db5;
+  --primary: #6c63ff;
+  --primary-hover: #5a53e8;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --accent: #a78bfa;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ===== 顶栏 ===== */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-logo { font-size: 18px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+.topbar-logo span { font-size: 22px; }
+.topbar-stats { display: flex; gap: 20px; align-items: center; }
+.stat-item { text-align: center; }
+.stat-item .val { font-size: 20px; font-weight: 700; color: var(--primary); }
+.stat-item .lbl { font-size: 11px; color: var(--text-muted); }
+.ws-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.ws-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.ws-dot.connected { background: var(--success); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ===== 主布局 ===== */
+.main-layout { display: flex; height: calc(100vh - 56px); }
+.sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; flex-shrink: 0; }
+.content { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ===== 标签页 ===== */
+.tab-bar { display: flex; gap: 4px; margin-bottom: 20px; background: var(--surface2); padding: 4px; border-radius: var(--radius); }
+.tab-btn { flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all .15s; }
+.tab-btn.active { background: var(--primary); color: #fff; }
+.tab-btn:hover:not(.active) { background: var(--border); color: var(--text); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ===== 侧边栏 - 爬取队列 ===== */
+.sidebar-title { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: .5px; margin-bottom: 12px; }
+.queue-controls { display: flex; gap: 6px; margin-bottom: 12px; }
+.btn { padding: 7px 14px; border: none; border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { filter: brightness(0.9); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(0.9); }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--border); }
+.btn-sm { padding: 4px 8px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.queue-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; margin-bottom: 8px; }
+.queue-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.queue-item-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.status-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+.status-pending { background: rgba(255,255,255,.1); color: var(--text-muted); }
+.status-running { background: rgba(59,130,246,.2); color: var(--info); }
+.status-completed { background: rgba(34,197,94,.2); color: var(--success); }
+.status-failed { background: rgba(239,68,68,.2); color: var(--danger); }
+.progress-bar { background: var(--border); border-radius: 99px; height: 4px; margin-top: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width .5s; border-radius: 99px; }
+.queue-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+
+/* ===== 女优列表 ===== */
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.search-box { flex: 1; min-width: 200px; display: flex; gap: 8px; }
+.input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: var(--radius); font-size: 13px; outline: none; transition: border .15s; }
+.input:focus { border-color: var(--primary); }
+.input::placeholder { color: var(--text-muted); }
+.select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: var(--radius); font-size: 13px; cursor: pointer; }
+.select-all-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.selected-count { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+.actress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.actress-card { background: var(--surface2); border: 2px solid transparent; border-radius: var(--radius-lg); padding: 12px; cursor: pointer; transition: all .15s; position: relative; }
+.actress-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.actress-card.selected { border-color: var(--primary); background: rgba(108,99,255,.1); }
+.actress-card.selected::after { content: "✓"; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; font-weight: 700; }
+.actress-avatar { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 6px; background: var(--border); display: block; margin-bottom: 8px; }
+.actress-avatar-placeholder { width: 100%; aspect-ratio: 3/4; background: var(--border); border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.actress-name { font-size: 13px; font-weight: 600; text-align: center; color: var(--text); line-height: 1.4; margin-bottom: 4px; }
+.actress-info-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+.actress-info-row span { background: var(--border); padding: 1px 5px; border-radius: 3px; }
+.actress-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
+.crawled-badge { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+.crawled-badge.done { background: var(--success); }
+.crawled-badge.pending { background: var(--text-muted); }
+
+.pagination-bar { display: flex; justify-content: center; gap: 6px; margin-top: 20px; align-items: center; }
+.page-btn { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius); cursor: pointer; font-size: 13px; }
+.page-btn:hover { border-color: var(--primary); }
+.page-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.page-info { color: var(--text-muted); font-size: 13px; }
+
+/* ===== 图片预览模态框 ===== */
+.img-preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 2000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+.img-preview-overlay.show { display: flex; }
+.img-preview-overlay img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
+.img-preview-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.2); border: none; color: #fff; font-size: 28px; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; line-height: 1; }
+.img-preview-close:hover { background: rgba(255,255,255,.3); }
+.img-preview-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.6); font-size: 13px; }
+
+/* ===== 女优详情模态框 ===== */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; display: none; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 90%; max-width: 900px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.modal-title { font-size: 18px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+.actress-detail-header { display: flex; gap: 20px; margin-bottom: 20px; }
+.actress-detail-avatar { width: 120px; height: 160px; object-fit: cover; border-radius: 8px; background: var(--border); flex-shrink: 0; }
+.actress-detail-info { flex: 1; }
+.actress-detail-name { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.info-item { background: var(--surface2); border-radius: var(--radius); padding: 8px; }
+.info-item .key { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+.info-item .val { font-size: 14px; font-weight: 500; }
+
+/* ===== 作品列表 ===== */
+.works-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.work-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all .15s; }
+.work-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.work-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--border); display: block; }
+.work-info { padding: 10px; }
+.work-code { font-size: 12px; font-weight: 700; color: var(--accent); }
+.work-title { font-size: 12px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.work-date { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.work-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.work-actresses { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.actress-chip { font-size: 10px; padding: 2px 6px; background: rgba(108,99,255,.2); border-radius: 4px; color: var(--accent); cursor: pointer; }
+.actress-chip:hover { background: rgba(108,99,255,.4); }
+.tag-chip { font-size: 10px; padding: 2px 6px; background: var(--border); border-radius: 4px; color: var(--text-muted); }
+.magnet-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: rgba(34,197,94,.15); color: var(--success); margin-top: 4px; }
+.magnet-pill.uc { background: rgba(168,139,250,.2); color: var(--accent); }
+.no-magnet-pill { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--border); color: var(--text-muted); margin-top: 4px; }
+
+/* ===== 进度面板 ===== */
+.progress-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; }
+.progress-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.progress-panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.log-box { background: var(--bg); border-radius: 6px; padding: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; color: #a3e635; }
+.log-entry { margin-bottom: 3px; line-height: 1.5; }
+.log-success { color: var(--success); }
+.log-error { color: var(--danger); }
+.log-info { color: var(--info); }
+.log-warn { color: var(--warning); }
+
+/* ===== 作品详情面板 ===== */
+.work-detail-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+.work-detail-header { display: flex; gap: 20px; margin-bottom: 20px; }
+.work-cover-lg { width: 200px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: var(--border); }
+.work-detail-meta { flex: 1; }
+.work-detail-code { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.work-detail-title { font-size: 15px; color: var(--text); margin-bottom: 12px; }
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meta-item .k { font-size: 11px; color: var(--text-muted); }
+.meta-item .v { font-size: 14px; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; margin-top: 16px; }
+.magnet-table { width: 100%; border-collapse: collapse; }
+.magnet-table th, .magnet-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+.magnet-table th { color: var(--text-muted); font-weight: 500; font-size: 12px; }
+.magnet-table tr:hover td { background: rgba(255,255,255,.02); }
+.magnet-link { color: var(--primary); text-decoration: none; font-family: monospace; font-size: 12px; word-break: break-all; }
+.copy-btn { padding: 3px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 11px; }
+.copy-btn:hover { border-color: var(--primary); color: var(--primary); }
+.priority-badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+.p1 { background: rgba(168,139,250,.25); color: var(--accent); }
+.p2 { background: rgba(59,130,246,.2); color: var(--info); }
+.p3 { background: rgba(245,158,11,.2); color: var(--warning); }
+.p4, .p5 { background: rgba(34,197,94,.15); color: var(--success); }
+.p99 { background: var(--border); color: var(--text-muted); }
+.best-magnet-box { background: rgba(108,99,255,.12); border: 1px solid rgba(108,99,255,.3); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+.best-magnet-label { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; }
+.best-magnet-url { font-family: monospace; font-size: 12px; word-break: break-all; margin-bottom: 6px; }
+.best-magnet-meta { font-size: 12px; color: var(--text-muted); }
+.cast-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.cast-chip { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.cast-chip:hover { border-color: var(--primary); }
+.cast-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--border); }
+
+/* ===== 数据分析 ===== */
+.analysis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.stat-card .num { font-size: 32px; font-weight: 700; color: var(--primary); }
+.stat-card .desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-cloud-item { padding: 4px 10px; border-radius: 99px; font-size: 12px; cursor: pointer; transition: all .15s; }
+.tag-cloud-item:hover { filter: brightness(1.2); }
+
+/* ===== 加载 ===== */
+.loading { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 12px; font-size: 15px; }
+.empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+/* ===== Toast ===== */
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-size: 13px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.4); animation: slideIn .2s; }
+@keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+.toast-success { border-left: 3px solid var(--success); }
+.toast-error { border-left: 3px solid var(--danger); }
+.toast-info { border-left: 3px solid var(--info); }
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .main-layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .actress-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <span>🏛️</span> JavBus Spider · 三省六部制
+  </div>
+  <div class="topbar-stats" id="topStats">
+    <div class="stat-item"><div class="val" id="stat-actresses">-</div><div class="lbl">女優</div></div>
+    <div class="stat-item"><div class="val" id="stat-works">-</div><div class="lbl">作品</div></div>
+    <div class="stat-item"><div class="val" id="stat-magnets">-</div><div class="lbl">磁力</div></div>
+    <div class="stat-item"><div class="val" id="stat-queue">0</div><div class="lbl">隊列</div></div>
+  </div>
+  <div class="ws-indicator">
+    <div class="ws-dot" id="wsDot"></div>
+    <span id="wsStatus">未連接</span>
+  </div>
+</header>
+
+<!-- 主布局 -->
+<div class="main-layout">
+
+  <!-- 侧边栏：爬取队列（尚书省） -->
+  <aside class="sidebar">
+    <div class="sidebar-title">⚔️ 尚書省 · 爬取隊列</div>
+    <div class="queue-controls">
+      <button class="btn btn-success btn-sm" id="btnStartQueue" onclick="startQueue()">▶ 開始</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearQueue()">清空</button>
+    </div>
+    <div id="queueList">
+      <div class="queue-empty">隊列為空<br><small>在女優列表選擇後添加</small></div>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="content">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('actresses')">👩 女優列表</button>
+      <button class="tab-btn" onclick="switchTab('works')">🎬 全部作品</button>
+      <button class="tab-btn" onclick="switchTab('progress')">📊 爬取進度</button>
+      <button class="tab-btn" onclick="switchTab('analysis')">📈 數據分析</button>
+    </div>
+
+    <!-- Tab: 女优列表 -->
+    <div class="tab-panel active" id="tab-actresses">
+      <div class="toolbar">
+        <div class="search-box">
+          <input class="input" id="actressSearch" placeholder="搜索女優名字..." oninput="actressSearchChanged()">
+        </div>
+        <select class="select" id="actressFilter" onchange="loadActresses()">
+          <option value="">全部</option>
+          <option value="false">未爬個人信息</option>
+          <option value="true">已爬個人信息</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="crawlAllActresses()">🌐 爬取全站女優</button>
+      </div>
+      <div class="select-all-bar">
+        <button class="btn btn-ghost btn-sm" onclick="selectAll()">全選本頁</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">取消全選</button>
+        <span class="selected-count" id="selectedCount">已選 0 人</span>
+        <button class="btn btn-primary btn-sm" id="btnAddToQueue" onclick="addSelectedToQueue()" disabled>加入爬取隊列</button>
+      </div>
+      <div id="actressGrid" class="actress-grid">
+        <div class="loading"><div class="spinner"></div> 加載中...</div>
+      </div>
+      <div class="pagination-bar" id="actressPagination"></div>
+    </div>
+
+    <!-- Tab: 全部作品 -->
+    <div class="tab-panel" id="tab-works">
+      <div class="toolbar">
+        <input class="input" id="workSearch" placeholder="搜索番號/標題..." style="flex:1" oninput="debounce(loadWorks, 400)()">
+        <select class="select" id="workActressSelect" onchange="onActressSelectChange()" style="width:140px">
+          <option value="">全部女優</option>
+        </select>
+        <input class="input" id="workActress" placeholder="或输入名字..." style="width:120px" oninput="debounce(loadWorks, 400)()">
+        <input class="input" id="workStudio" placeholder="制作商" style="width:130px" oninput="debounce(loadWorks, 400)()">
+        <input class="input" id="workTag" placeholder="標籤" style="width:120px" oninput="debounce(loadWorks, 400)()">
+        <input class="input" type="date" id="workDateFrom" onchange="loadWorks()" style="width:140px">
+        <span style="color:var(--text-muted)">~</span>
+        <input class="input" type="date" id="workDateTo" onchange="loadWorks()" style="width:140px">
+        <select class="select" id="workHasMagnet" onchange="loadWorks()">
+          <option value="">全部</option>
+          <option value="true">有磁力</option>
+        </select>
+      </div>
+      <div id="workGrid" class="works-grid">
+        <div class="loading"><div class="spinner"></div> 加載中...</div>
+      </div>
+      <div class="pagination-bar" id="workPagination"></div>
+    </div>
+
+    <!-- Tab: 爬取进度 -->
+    <div class="tab-panel" id="tab-progress">
+      <div style="margin-bottom:16px">
+        <h2 style="font-size:16px; font-weight:600; margin-bottom:4px">⚔️ 任務執行看板</h2>
+        <p style="color:var(--text-muted); font-size:13px">實時顯示各女優爬取進度，通過 WebSocket 自動刷新</p>
+      </div>
+
+      <!-- 全站女优爬取进度 -->
+      <div class="progress-panel" id="actressesCrawlPanel" style="display:none">
+        <div class="progress-panel-header">
+          <div class="progress-panel-title">
+            <div class="spinner" id="actressesCrawlSpinner"></div>
+            🌐 全站女優列表爬取
+          </div>
+          <span class="status-badge" id="actressesCrawlBadge">運行中</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="actressesCrawlBar" style="width:0%"></div></div>
+        <div style="margin-top:8px; font-size:13px; color:var(--text-muted)" id="actressesCrawlMsg"></div>
+      </div>
+
+      <div id="taskPanels">
+        <div class="empty-state"><div class="icon">🏯</div>暫無爬取任務<br><small>在女優列表選擇女優後添加到隊列</small></div>
+      </div>
+    </div>
+
+    <!-- Tab: 数据分析 -->
+    <div class="tab-panel" id="tab-analysis">
+      <div class="analysis-grid" id="analysisStats"></div>
+      <div style="margin-bottom:16px">
+        <div class="section-title">🏷️ 標籤頻次統計（Top 50）</div>
+        <div class="tag-cloud" id="tagCloud">
+          <div class="loading"><div class="spinner"></div> 加載中...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 图片预览模态框 -->
+<div class="img-preview-overlay" id="imgPreview" onclick="closeImgPreview(event)">
+  <button class="img-preview-close" onclick="closeImgPreviewDirect()">✕</button>
+  <img id="imgPreviewSrc" src="" alt="预览">
+  <div class="img-preview-hint">點擊任意處關閉</div>
+</div>
+
+<!-- 女优详情模态框 -->
+<div class="modal-overlay" id="actressModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalActressName">女優詳情</span>
+      <button class="modal-close" onclick="closeActressModal()">✕</button>
+    </div>
+    <div class="modal-body" id="actressModalBody">
+      <div class="loading"><div class="spinner"></div> 加載中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 作品详情模态框 -->
+<div class="modal-overlay" id="workModal">
+  <div class="modal" style="max-width:1000px">
+    <div class="modal-header">
+      <span class="modal-title" id="modalWorkCode">作品詳情</span>
+      <button class="modal-close" onclick="closeWorkModal()">✕</button>
+    </div>
+    <div class="modal-body" id="workModalBody">
+      <div class="loading"><div class="spinner"></div> 加載中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast 容器 -->
+<div id="toast-container"></div>
+
+<script>
+// ===================================================
+// 全局状态
+// ===================================================
+const STATE = {
+  actresses: { page: 1, total: 0, totalPages: 1 },
+  works: { page: 1, total: 0, totalPages: 1 },
+  selected: new Set(),
+  ws: null,
+  queueData: {},
+};
+
+// ===================================================
+// WebSocket 连接
+// ===================================================
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/ws/progress`);
+
+  ws.onopen = () => {
+    document.getElementById('wsDot').classList.add('connected');
+    document.getElementById('wsStatus').textContent = '已連接';
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'queue_progress') {
+        handleQueueProgress(msg.data);
+      } else if (msg.type === 'actresses_crawl') {
+        handleActressesCrawl(msg.data);
+      }
+    } catch (e) {}
+  };
+
+  ws.onclose = () => {
+    document.getElementById('wsDot').classList.remove('connected');
+    document.getElementById('wsStatus').textContent = '斷開，重連中...';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  // 心跳
+  setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) ws.send('ping');
+  }, 30000);
+
+  STATE.ws = ws;
+}
+
+// ===================================================
+// 全站女优爬取进度处理
+// ===================================================
+function handleActressesCrawl(data) {
+  const panel = document.getElementById('actressesCrawlPanel');
+  panel.style.display = 'block';
+
+  const badge = document.getElementById('actressesCrawlBadge');
+  const bar = document.getElementById('actressesCrawlBar');
+  const msg = document.getElementById('actressesCrawlMsg');
+  const spinner = document.getElementById('actressesCrawlSpinner');
+
+  msg.textContent = data.msg || '';
+
+  if (data.status === 'running') {
+    badge.textContent = '運行中';
+    badge.className = 'status-badge status-running';
+    spinner.style.display = 'inline-block';
+    const pct = data.total > 0 ? Math.round(data.current / data.total * 100) : 10;
+    bar.style.width = pct + '%';
+  } else if (data.status === 'completed') {
+    badge.textContent = '完成';
+    badge.className = 'status-badge status-completed';
+    spinner.style.display = 'none';
+    bar.style.width = '100%';
+    loadActresses();
+    loadStats();
+    toast('✅ ' + data.msg, 'success');
+  } else if (data.status === 'failed') {
+    badge.textContent = '失敗';
+    badge.className = 'status-badge status-failed';
+    spinner.style.display = 'none';
+    toast('❌ ' + data.msg, 'error');
+  }
+}
+
+// ===================================================
+// 队列进度处理
+// ===================================================
+function handleQueueProgress(data) {
+  STATE.queueData = data;
+  renderQueue(data.queue || []);
+  renderTaskPanels(data.progress_map || {});
+  loadStats();
+}
+
+function renderQueue(queue) {
+  const el = document.getElementById('queueList');
+  if (!queue.length) {
+    el.innerHTML = '<div class="queue-empty">隊列為空<br><small>在女優列表選擇後添加</small></div>';
+    document.getElementById('stat-queue').textContent = '0';
+    return;
+  }
+
+  document.getElementById('stat-queue').textContent = queue.length;
+
+  el.innerHTML = queue.map(item => `
+    <div class="queue-item">
+      <div class="queue-item-header">
+        <span class="queue-item-name">${item.actress_name}</span>
+        <span class="status-badge status-${item.status}">${statusLabel(item.status)}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${item.progress_pct}%"></div>
+      </div>
+      ${item.status === 'pending' ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="removeFromQueue(${item.actress_id})">移除</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderTaskPanels(progressMap) {
+  const container = document.getElementById('taskPanels');
+  const entries = Object.entries(progressMap);
+
+  if (!entries.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🏯</div>暫無爬取任務<br><small>在女優列表選擇女優後添加到隊列</small></div>';
+    return;
+  }
+
+  container.innerHTML = entries.map(([aid, p]) => `
+    <div class="progress-panel">
+      <div class="progress-panel-header">
+        <div class="progress-panel-title">
+          ${p.status === 'running' ? '<div class="spinner"></div>' : statusIcon(p.status)}
+          ${p.actress_name}
+          <small style="color:var(--text-muted); font-weight:400">#${p.task_id}</small>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-muted)">${p.done_works}/${p.total_works} 作品</span>
+          <span class="status-badge status-${p.status}">${statusLabel(p.status)}</span>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${p.progress_pct}%"></div>
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">${p.current_msg || ''}</div>
+      ${p.logs && p.logs.length ? `
+        <details style="margin-top:8px">
+          <summary style="font-size:12px;color:var(--text-muted);cursor:pointer">查看日誌</summary>
+          <div class="log-box" style="margin-top:6px">
+            ${p.logs.map(l => `<div class="log-entry">${escapeHtml(l)}</div>`).join('')}
+          </div>
+        </details>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+// ===================================================
+// 女优列表 - 分页模式
+// ===================================================
+let actressPage = 1;
+let actressSearchTimer;
+
+// 搜索框变化时延迟执行搜索
+function actressSearchChanged() {
+  clearTimeout(actressSearchTimer);
+  actressSearchTimer = setTimeout(() => {
+    actressPage = 1; // 搜索时重置到第一页
+    loadActresses();
+  }, 400);
+}
+
+async function loadActresses() {
+  const search = document.getElementById('actressSearch').value;
+  const filter = document.getElementById('actressFilter').value;
+  const grid = document.getElementById('actressGrid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div> 加載中...</div>';
+
+  const params = new URLSearchParams({ page: actressPage, per_page: 50 });
+  if (search) params.append('search', search);
+  if (filter !== '') params.append('profile_crawled', filter);
+
+  const res = await fetch('/api/actresses?' + params);
+  const data = await res.json();
+
+  STATE.actresses = { page: data.page, total: data.total, totalPages: data.total_pages };
+
+  if (!data.items.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>沒有找到女優<br><small>嘗試點擊「爬取全站女優」</small></div>';
+    renderActressPagination();
+    return;
+  }
+
+  grid.innerHTML = data.items.map(a => `
+    <div class="actress-card ${STATE.selected.has(a.id) ? 'selected' : ''}" 
+         id="acard-${a.id}"
+         onclick="toggleSelect(${a.id}, this)">
+      ${a.avatar
+        ? `<img class="actress-avatar" src="${a.avatar}" alt="${a.name}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="actress-avatar-placeholder">👩</div>`}
+      <div class="actress-name">${a.name}</div>
+      <div class="actress-info-row">
+        ${a.birthday ? `<span>${a.birthday}</span>` : ''}
+        ${a.age ? `<span>${a.age}岁</span>` : ''}
+        ${a.height ? `<span>${a.height}cm</span>` : ''}
+        ${a.cup ? `<span>${a.cup}</span>` : ''}
+      </div>
+      <div class="actress-meta">
+        <span class="crawled-badge ${a.profile_crawled ? 'done' : 'pending'}"></span>
+        ${a.profile_crawled ? '已爬' : '待爬'}
+      </div>
+    </div>
+  `).join('');
+
+  // 双击打开详情
+  document.querySelectorAll('.actress-card').forEach(card => {
+    let clickTimer = null;
+    const aid = parseInt(card.id.replace('acard-', ''));
+    card.addEventListener('click', (e) => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        openActressModal(aid);
+      } else {
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+        }, 250);
+      }
+    });
+  });
+
+  renderActressPagination();
+  updateSelectedCount();
+}
+
+function toggleSelect(id, el) {
+  if (STATE.selected.has(id)) {
+    STATE.selected.delete(id);
+    el.classList.remove('selected');
+  } else {
+    STATE.selected.add(id);
+    el.classList.add('selected');
+  }
+  updateSelectedCount();
+}
+
+function selectAll() {
+  document.querySelectorAll('.actress-card').forEach(card => {
+    const aid = parseInt(card.id.replace('acard-', ''));
+    STATE.selected.add(aid);
+    card.classList.add('selected');
+  });
+  updateSelectedCount();
+}
+
+function clearSelection() {
+  STATE.selected.clear();
+  document.querySelectorAll('.actress-card.selected').forEach(c => c.classList.remove('selected'));
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const n = STATE.selected.size;
+  document.getElementById('selectedCount').textContent = `已選 ${n} 人`;
+  document.getElementById('btnAddToQueue').disabled = n === 0;
+}
+
+function renderActressPagination() {
+  const { page, totalPages, total } = STATE.actresses;
+  const bar = document.getElementById('actressPagination');
+  if (totalPages <= 1) { 
+    bar.innerHTML = `<span class="page-info">共 ${total} 位女优</span>`;
+    return;
+  }
+
+  let html = '';
+  if (page > 1) html += `<button class="page-btn" onclick="goActressPage(${page-1})">‹ 上一頁</button>`;
+
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn ${i===page?'active':''}" onclick="goActressPage(${i})">${i}</button>`;
+  }
+
+  if (page < totalPages) html += `<button class="page-btn" onclick="goActressPage(${page+1})">下一頁 ›</button>`;
+  html += `<span class="page-info">${page}/${totalPages} 頁，共 ${total} 人</span>`;
+  bar.innerHTML = html;
+}
+
+function goActressPage(p) {
+  actressPage = p;
+  loadActresses();
+}
+
+// ===================================================
+// 添加到队列
+// ===================================================
+async function addSelectedToQueue() {
+  if (!STATE.selected.size) return;
+
+  const ids = Array.from(STATE.selected);
+  const res = await fetch('/api/batch/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids),
+  });
+  const data = await res.json();
+  toast(`✅ 已加入 ${data.added.length} 人到隊列`, 'success');
+  clearSelection();
+}
+
+async function removeFromQueue(actressId) {
+  await fetch(`/api/batch/remove/${actressId}`, { method: 'POST' });
+}
+
+async function startQueue() {
+  const res = await fetch('/api/batch/start', { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    toast(data.msg, 'success');
+    switchTab('progress');
+  } else {
+    toast(data.msg, 'error');
+  }
+}
+
+async function clearQueue() {
+  await fetch('/api/batch/clear', { method: 'POST' });
+  toast('隊列已清空', 'info');
+}
+
+// ===================================================
+// 全站女优爬取
+// ===================================================
+async function crawlAllActresses() {
+  const res = await fetch('/api/actresses/crawl-all', { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    toast('🌐 全站女優爬取已啟動，請查看進度標籤', 'info');
+    switchTab('progress');
+  } else {
+    toast(data.msg, 'error');
+  }
+}
+
+// ===================================================
+// 女优详情模态框
+// ===================================================
+async function openActressModal(actressId) {
+  const modal = document.getElementById('actressModal');
+  const body = document.getElementById('actressModalBody');
+  modal.classList.add('show');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> 加載中...</div>';
+
+  // 并行加载：详情 + 作品
+  const [detailRes, worksRes] = await Promise.all([
+    fetch(`/api/actress/${actressId}`),
+    fetch(`/api/actress/${actressId}/works?per_page=100`),
+  ]);
+  const actress = await detailRes.json();
+  const worksData = await worksRes.json();
+
+  document.getElementById('modalActressName').textContent = actress.name;
+
+  body.innerHTML = `
+    <div class="actress-detail-header">
+      ${actress.avatar
+        ? `<img class="actress-detail-avatar" src="${actress.avatar}" alt="${actress.name}">`
+        : `<div class="actress-detail-avatar" style="display:flex;align-items:center;justify-content:center;font-size:48px">👩</div>`}
+      <div class="actress-detail-info">
+        <div class="actress-detail-name">${actress.name}</div>
+        <div class="info-grid">
+          ${infoItem('🎂 生日', actress.birthday)}
+          ${infoItem('🎂 年齡', actress.age)}
+          ${infoItem('📏 身高', actress.height)}
+          ${infoItem('🩱 罩杯', actress.cup)}
+          ${infoItem('📐 胸圍', actress.bust)}
+          ${infoItem('📐 腰圍', actress.waist)}
+          ${infoItem('📐 臀圍', actress.hip)}
+          ${infoItem('❤️ 愛好', actress.hobby || '-')}
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="addActressToQueue(${actress.id}, '${actress.name}')">加入爬取隊列</button>
+          ${actress.profile_url ? `<a href="${actress.profile_url}" target="_blank" class="btn btn-ghost btn-sm">🔗 JavBus原頁</a>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">🎬 作品列表（${worksData.total} 部）</div>
+    <div class="works-grid">
+      ${worksData.items.length
+        ? worksData.items.map(w => workCardHtml(w)).join('')
+        : '<div class="empty-state" style="padding:30px"><small>尚無作品數據，需要爬取</small></div>'
+      }
+    </div>
+  `;
+}
+
+function infoItem(label, val) {
+  return `<div class="info-item"><div class="key">${label}</div><div class="val">${val || '-'}</div></div>`;
+}
+
+function closeActressModal() {
+  document.getElementById('actressModal').classList.remove('show');
+}
+
+async function addActressToQueue(id, name) {
+  const res = await fetch('/api/batch/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([id]),
+  });
+  const data = await res.json();
+  toast(data.added.length ? `✅ ${name} 已加入隊列` : `${name} 已在隊列中`, data.added.length ? 'success' : 'info');
+}
+
+// ===================================================
+// 全部作品列表
+// ===================================================
+let workPage = 1;
+
+async function loadWorks() {
+  const search = document.getElementById('workSearch').value;
+  // 优先使用下拉框的女优选择，其次使用输入框
+  const actressSelect = document.getElementById('workActressSelect');
+  const actressInput = document.getElementById('workActress').value;
+  const actress = actressSelect.value || actressInput;
+  const studio = document.getElementById('workStudio').value;
+  const tag = document.getElementById('workTag').value;
+  const dateFrom = document.getElementById('workDateFrom').value;
+  const dateTo = document.getElementById('workDateTo').value;
+  const hasMagnet = document.getElementById('workHasMagnet').value;
+  const grid = document.getElementById('workGrid');
+  grid.innerHTML = '<div class="loading"><div class="spinner"></div> 加載中...</div>';
+
+  const params = new URLSearchParams({ page: workPage, per_page: 24 });
+  if (search) params.append('search', search);
+  if (actress) params.append('actress_name', actress);
+  if (studio) params.append('studio', studio);
+  if (tag) params.append('tag', tag);
+  if (dateFrom) params.append('date_from', dateFrom);
+  if (dateTo) params.append('date_to', dateTo);
+  if (hasMagnet) params.append('has_magnet', hasMagnet);
+
+  const res = await fetch('/api/works?' + params);
+  const data = await res.json();
+
+  STATE.works = { page: data.page, total: data.total, totalPages: data.total_pages };
+
+  if (!data.items.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🎬</div>暫無作品數據</div>';
+    renderWorkPagination();
+    return;
+  }
+
+  grid.innerHTML = data.items.map(w => workCardHtml(w)).join('');
+  renderWorkPagination();
+}
+
+function workCardHtml(w) {
+  const pick = w.picked_magnet;
+  const priorityLabels = {1:'-UC', 2:'-U', 3:'-4K', 4:'uncensored', 5:'-C'};
+  const magnetBadge = pick
+    ? `<div class="magnet-pill ${pick.priority_level <= 2 ? 'uc' : ''}">
+         🧲 ${pick.size_str} ${pick.priority_level < 99 ? priorityLabels[pick.priority_level] || '' : ''}
+       </div>`
+    : '<div class="no-magnet-pill">無磁力</div>';
+
+  const tags = (w.tags || []).slice(0, 3).map(t => `<span class="tag-chip">${t}</span>`).join('');
+  
+  // 尝试从 cast 字段获取女优名字，如果没有则从标题提取
+  let actressHtml = '';
+  if (w.cast && w.cast.length > 0) {
+    actressHtml = w.cast.slice(0, 2).map(a => 
+      `<span class="actress-chip" onclick="event.stopPropagation();filterByActress('${escapeAttr(a.name)}')">${a.name}</span>`
+    ).join('');
+  } else {
+    // 从标题中简单提取女优名字（假设名字在番号之后的某个位置）
+    // 这是一个临时方案，后续应通过 WorkCast 正确关联
+    const titleMatch = w.title ? w.title.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g) : null;
+    if (titleMatch && titleMatch.length > 1) {
+      // 取标题中可能的女优名字（通常是第2个或之后的日文字符串）
+      actressHtml = `<span class="actress-chip" onclick="event.stopPropagation();filterByActress('${escapeAttr(titleMatch[1] || '')}')">${titleMatch[1] || ''}</span>`;
+    }
+  }
+
+  return `
+    <div class="work-card" onclick="openWorkModal(${w.id})">
+      ${w.cover
+        ? `<img class="work-cover" src="${w.cover}" alt="${w.code}" loading="lazy" onclick="event.stopPropagation();openImgPreview('${w.cover}')" style="cursor:zoom-in" onerror="this.style.display='none'">`
+        : `<div class="work-cover" style="display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`}
+      <div class="work-info">
+        <div class="work-code">${w.code}</div>
+        <div class="work-title" title="${escapeHtml(w.title)}">${escapeHtml(w.title) || '—'}</div>
+        ${actressHtml ? `<div class="work-actresses">${actressHtml}</div>` : ''}
+        <div class="work-date">${w.release_date || '—'}</div>
+        ${tags ? `<div class="work-tags">${tags}</div>` : ''}
+        ${magnetBadge}
+      </div>
+    </div>
+  `;
+}
+
+// 点击作品卡片上的女优名字进行筛选
+function filterByActress(name) {
+  document.getElementById('workActress').value = name;
+  document.getElementById('workActressSelect').value = '';
+  switchTab('works');
+  loadWorks();
+}
+
+function renderWorkPagination() {
+  const { page, totalPages, total } = STATE.works;
+  const bar = document.getElementById('workPagination');
+  if (totalPages <= 1) { bar.innerHTML = ''; return; }
+
+  let html = '';
+  if (page > 1) html += `<button class="page-btn" onclick="goWorkPage(${page-1})">‹ 上一頁</button>`;
+
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn ${i===page?'active':''}" onclick="goWorkPage(${i})">${i}</button>`;
+  }
+
+  if (page < totalPages) html += `<button class="page-btn" onclick="goWorkPage(${page+1})">下一頁 ›</button>`;
+  html += `<span class="page-info">${page}/${totalPages}，共 ${total} 部</span>`;
+  bar.innerHTML = html;
+}
+
+function goWorkPage(p) {
+  workPage = p;
+  loadWorks();
+}
+
+// ===================================================
+// 作品详情模态框
+// ===================================================
+async function openWorkModal(workId) {
+  const modal = document.getElementById('workModal');
+  const body = document.getElementById('workModalBody');
+  modal.classList.add('show');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> 加載中...</div>';
+
+  const res = await fetch(`/api/work/${workId}`);
+  const w = await res.json();
+
+  document.getElementById('modalWorkCode').textContent = w.code;
+
+  const priorityLabels = {1:'-UC', 2:'-U', 3:'-4K', 4:'uncensored', 5:'-C'};
+  const priorityClass = {1:'p1', 2:'p2', 3:'p3', 4:'p4', 5:'p5', 99:'p99'};
+
+  const pickedBox = w.picked_magnet ? `
+    <div class="best-magnet-box">
+      <div class="best-magnet-label">⭐ 最優磁力（${w.picked_magnet.pick_reason || ''}）</div>
+      <div class="best-magnet-url">${w.picked_magnet.magnet_url}</div>
+      <div class="best-magnet-meta">${w.picked_magnet.size_str} · ${w.picked_magnet.share_date || '—'}</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="copyText('${escapeAttr(w.picked_magnet.magnet_url)}')">📋 複製磁力</button>
+    </div>
+  ` : '<p style="color:var(--text-muted);margin-bottom:16px">暫無磁力數據</p>';
+
+  const magnetRows = w.magnets.map(m => `
+    <tr>
+      <td><span class="priority-badge ${priorityClass[m.priority_level] || 'p99'}">${priorityLabels[m.priority_level] || '普通'}</span></td>
+      <td>${m.name || '—'}</td>
+      <td>${m.size_str || '—'}</td>
+      <td>${m.share_date || '—'}</td>
+      <td>
+        <button class="copy-btn" onclick="copyText('${escapeAttr(m.magnet_url)}')">複製</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const castHtml = w.cast.map(a => `
+    <div class="cast-chip" onclick="closeWorkModal();openActressModal(${a.id})">
+      ${a.name}
+    </div>
+  `).join('');
+
+  body.innerHTML = `
+    <div class="work-detail-header">
+      ${w.cover
+        ? `<img class="work-cover-lg" src="${w.cover}" alt="${w.code}" onerror="this.style.display='none'">`
+        : ''}
+      <div class="work-detail-meta">
+        <div class="work-detail-code">${w.code}</div>
+        <div class="work-detail-title">${escapeHtml(w.title)}</div>
+        <div class="meta-grid">
+          ${metaItem('發行日期', w.release_date)}
+          ${metaItem('導演', w.director)}
+          ${metaItem('製作商', w.studio)}
+          ${metaItem('發行商', w.label)}
+          ${w.series ? metaItem('系列', w.series) : ''}
+        </div>
+        ${w.work_url ? `<a href="${w.work_url}" target="_blank" class="btn btn-ghost btn-sm" style="margin-top:12px">🔗 JavBus原頁</a>` : ''}
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://missav.live/cn/search/${w.code}" target="_blank" class="btn btn-primary btn-sm">▶️ MissAV 在線觀看</a>
+          <a href="https://jable.tv/videos/${w.code}/" target="_blank" class="btn btn-primary btn-sm">▶️ Jable 在線觀看</a>
+        </div>
+      </div>
+    </div>
+
+    ${w.tags.length ? `
+      <div class="section-title">🏷️ 標籤</div>
+      <div class="work-tags" style="margin-bottom:12px">
+        ${w.tags.map(t => `<span class="tag-chip" style="font-size:12px;padding:4px 10px">${t.name}</span>`).join('')}
+      </div>
+    ` : ''}
+
+    ${castHtml ? `
+      <div class="section-title">👩 演員</div>
+      <div class="cast-list" style="margin-bottom:12px">${castHtml}</div>
+    ` : ''}
+
+    <div class="section-title">🧲 磁力鏈接（共 ${w.total_magnets} 條）</div>
+    ${pickedBox}
+    ${w.magnets.length ? `
+      <table class="magnet-table">
+        <thead><tr><th>優先級</th><th>名稱</th><th>大小</th><th>分享日期</th><th></th></tr></thead>
+        <tbody>${magnetRows}</tbody>
+      </table>
+    ` : '<p style="color:var(--text-muted)">暫無磁力數據</p>'}
+  `;
+}
+
+function metaItem(k, v) {
+  if (!v) return '';
+  return `<div class="meta-item"><div class="k">${k}</div><div class="v">${escapeHtml(v)}</div></div>`;
+}
+
+// 图片预览
+function openImgPreview(src) {
+  const overlay = document.getElementById('imgPreview');
+  const img = document.getElementById('imgPreviewSrc');
+  img.src = src;
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImgPreview(event) {
+  if (event.target === event.currentTarget) {
+    closeImgPreviewDirect();
+  }
+}
+
+function closeImgPreviewDirect() {
+  document.getElementById('imgPreview').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function closeWorkModal() {
+  document.getElementById('workModal').classList.remove('show');
+}
+
+// ===================================================
+// 数据分析
+// ===================================================
+async function loadAnalysis() {
+  const [statsRes, tagsRes] = await Promise.all([
+    fetch('/api/stats'),
+    fetch('/api/tags/stats?limit=50'),
+  ]);
+  const stats = await statsRes.json();
+  const tags = await tagsRes.json();
+
+  document.getElementById('analysisStats').innerHTML = `
+    <div class="stat-card"><div class="num">${stats.total_actresses}</div><div class="desc">👩 女優總數</div></div>
+    <div class="stat-card"><div class="num">${stats.profile_crawled}</div><div class="desc">✅ 已爬個人信息</div></div>
+    <div class="stat-card"><div class="num">${stats.total_works}</div><div class="desc">🎬 作品總數</div></div>
+    <div class="stat-card"><div class="num">${stats.works_with_magnets}</div><div class="desc">🧲 含磁力作品</div></div>
+    <div class="stat-card"><div class="num">${stats.total_magnets}</div><div class="desc">🔗 磁力候選總數</div></div>
+    <div class="stat-card"><div class="num">${stats.total_tags}</div><div class="desc">🏷️ 標籤種類</div></div>
+  `;
+
+  if (tags.length) {
+    const maxCount = tags[0].count;
+    const colors = ['#6c63ff','#a78bfa','#3b82f6','#22c55e','#f59e0b','#ef4444'];
+    document.getElementById('tagCloud').innerHTML = tags.map((t, i) => {
+      const size = 10 + Math.round((t.count / maxCount) * 14);
+      const color = colors[i % colors.length];
+      return `<div class="tag-cloud-item" style="font-size:${size}px;background:${color}22;color:${color};border:1px solid ${color}44" 
+               onclick="filterWorksByTag('${t.name}')">
+               ${t.name} <small>(${t.count})</small></div>`;
+    }).join('');
+  }
+}
+
+function filterWorksByTag(tagName) {
+  document.getElementById('workTag').value = tagName;
+  switchTab('works');
+  loadWorks();
+}
+
+// ===================================================
+// 统计数据
+// ===================================================
+async function loadStats() {
+  const res = await fetch('/api/stats');
+  const s = await res.json();
+  document.getElementById('stat-actresses').textContent = s.total_actresses || '-';
+  document.getElementById('stat-works').textContent = s.total_works || '-';
+  document.getElementById('stat-magnets').textContent = s.total_magnets || '-';
+  document.getElementById('stat-queue').textContent = s.queue_size || 0;
+
+  if (s.queue_running) {
+    document.getElementById('btnStartQueue').disabled = true;
+    document.getElementById('btnStartQueue').textContent = '▶ 運行中...';
+  } else {
+    document.getElementById('btnStartQueue').disabled = false;
+    document.getElementById('btnStartQueue').textContent = '▶ 開始';
+  }
+}
+
+// ===================================================
+// 标签页切换
+// ===================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+  const tabs = ['actresses', 'works', 'progress', 'analysis'];
+  const idx = tabs.indexOf(name);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+
+  if (name === 'actresses') loadActresses();
+  if (name === 'analysis') loadAnalysis();
+  if (name === 'works') {
+    loadWorks();
+    loadActressesWithWorks();
+  }
+}
+
+// 女优下拉框选择变化
+function onActressSelectChange() {
+  const select = document.getElementById('workActressSelect');
+  const input = document.getElementById('workActress');
+  if (select.value) {
+    input.value = ''; // 清空输入框
+  }
+  loadWorks();
+}
+
+// 加载有作品的女优列表
+async function loadActressesWithWorks() {
+  const select = document.getElementById('workActressSelect');
+  if (select.options.length > 1) return; // 已加载
+  
+  try {
+    const res = await fetch('/api/actresses/with-works?limit=200');
+    const data = await res.json();
+    
+    for (const a of data) {
+      const opt = document.createElement('option');
+      opt.value = a.name;
+      opt.textContent = a.name;
+      select.appendChild(opt);
+    }
+  } catch (e) {
+    console.error('加载女优列表失败:', e);
+  }
+}
+
+// ===================================================
+// 工具函数
+// ===================================================
+function statusLabel(s) {
+  return {pending:'待執行', running:'執行中', completed:'完成', failed:'失敗'}[s] || s;
+}
+function statusIcon(s) {
+  return {pending:'⏳', running:'', completed:'✅', failed:'❌'}[s] || '';
+}
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/'/g, "\\'");
+}
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('✅ 已複製到剪貼板', 'success'));
+}
+function toast(msg, type = 'info', duration = 3000) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+// 关闭模态框（点击遮罩）
+document.getElementById('actressModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('actressModal')) closeActressModal();
+});
+document.getElementById('workModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('workModal')) closeWorkModal();
+});
+
+// ===================================================
+// 初始化
+// ===================================================
+document.addEventListener('DOMContentLoaded', () => {
+  connectWS();
+  loadActresses();
+  loadStats();
+  // 每30秒刷新统计
+  setInterval(loadStats, 30000);
+});
+</script>
+</body>
+</html>

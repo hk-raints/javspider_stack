@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>批量操作 - JavSpider Stack</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="stylesheet" href="/static/progress.css"/>
+  <link rel="stylesheet" href="/static/app.js">
+</head>
+<body>
+  <div class="container">
+    <a href="/">&larr; 返回首页</a>
+    <h1>批量操作</h1>
+    
+    
+    <!-- 批量抓取配置 -->
+    <div class="card">
+      <h2>批量抓取配置</h2>
+      <div class="config-form">
+        <div class="form-row">
+          <label>目标域名：</label>
+          <input type="text" id="domain" value="https://www.javbus.com" style="width:300px" />
+        </div>
+        <div class="form-row">
+          <label>抓取策略：</label>
+          <select id="strategy">
+            <option value="清晰度">清晰度优先</option>
+            <option value="字幕">字幕优先</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>马赛克：</label>
+          <select id="mosaic">
+            <option value="all">全部</option>
+            <option value="yes">有码</option>
+            <option value="no">无码</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 女优列表 -->
+    <div class="card">
+      <div class="card-header">
+        <h2>选择女优</h2>
+        <div class="actions">
+          <button onclick="selectAll()">全选</button>
+          <button onclick="deselectAll()">取消全选</button>
+          <button onclick="addSelectedToQueue()" class="primary">添加到队列</button>
+        </div>
+      </div>
+      
+      <div class="actress-grid">
+        {% for a in actresses %}
+        <div class="actress-item" data-id="{{a.id}}">
+          <label class="checkbox-label">
+            <input type="checkbox" class="actress-checkbox" value="{{a.id}}" />
+            <span class="actress-name">#{{a.rank}} {{a.name}}</span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    
+    <!-- 抓取队列 -->
+    <div class="card">
+      <div class="card-header">
+        <h2>抓取队列 <span id="queue-count">(0)</span></h2>
+        <div class="actions">
+          <button onclick="clearQueue()" class="danger">清空队列</button>
+          <button onclick="startBatchCrawl()" class="primary" id="start-btn">开始批量抓取</button>
+        </div>
+      </div>
+      
+      <div id="queue-status" class="queue-status"></div>
+      
+      <table class="queue-table">
+        <thead>
+          <tr>
+            <th>位置</th>
+            <th>女优</th>
+            <th>状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="queue-body">
+          <tr>
+            <td colspan="4" class="empty">队列为空</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <script>
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      loadQueueStatus();
+      setInterval(loadQueueStatus, 5000);
+    });
+  </script>
+</body>
+</html>

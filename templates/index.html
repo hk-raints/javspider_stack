@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JavSpider Stack</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script>
+    async function handleSeed(event) {
+      event.preventDefault();
+      const form = event.target;
+      const button = form.querySelector('button[type="submit"]');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '加载中...';
+
+      try {
+        const response = await fetch('/actresses/seed', { method: 'GET' });
+        const data = await response.json();
+        
+        if (data.ok) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert('初始化失败: ' + data.message);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    async function handleFetchTop(event) {
+      event.preventDefault();
+      const form = event.target;
+      const button = form.querySelector('button[type="submit"]');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '抓取中...';
+
+      try {
+        const response = await fetch('/actresses/fetch_top', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.ok) {
+          alert(`成功获取 ${data.count} 个女优！`);
+          location.reload();
+        } else {
+          alert('抓取失败: ' + data.msg);
+        }
+      } catch (error) {
+        alert('请求失败: ' + error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>JavSpider Stack（简易版）</h1>
+    {% if not actresses or actresses|length == 0 %}
+      <p>还没有榜单数据。请选择以下方式之一：</p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin:16px 0;">
+        <form onsubmit="handleSeed(event)">
+          <button type="submit" style="background:#4CAF50;">📋 使用内置列表初始化</button>
+        </form>
+        <form onsubmit="handleFetchTop(event)">
+          <button type="submit" style="background:#2196F3;">🌐 从网络获取热门榜单</button>
+        </form>
+      </div>
+      <p style="font-size:12px; color:#666; margin-top:8px;">
+        注意：网络获取可能需要安装 playwright，或被网站防爬机制拦截
+      </p>
+    {% else %}
+      <div class="toolbar">
+        <form method="get" action="/">
+          <input type="text" name="q" placeholder="搜索女优名（本地）" />
+          <button type="submit">搜索</button>
+        </form>
+      </div>
+      <div class="grid">
+        {% for a in actresses %}
+          <a class="card" href="/actress/{{a.id}}">
+            {% if a.avatar %}<img src="{{a.avatar}}" alt="{{a.name}}"/>{% endif %}
+            <div class="meta">
+              <div class="name">#{{a.rank}} {{a.name}}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

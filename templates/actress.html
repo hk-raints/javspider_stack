@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{a.name}} · 作品</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="stylesheet" href="/static/progress.css"/>
+  <script src="/static/app.js"></script>
+  <script>
+    async function handleSubmit(event) {
+      event.preventDefault();
+      const form = event.target;
+      startCrawlWithProgress({{a.id}}, '{{a.name}}', form);
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 初始化作品管理器
+      window.worksManager = new WorksManager({{a.id}});
+      window.worksManager.loadWorks();
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <a href="/">&larr; 返回</a>
+    <h1>{{a.name}}</h1>
+    
+    <!-- 抓取表单 -->
+    <form method="post" action="/actress/{{a.id}}/crawl" style="margin:12px 0;" onsubmit="handleSubmit(event)">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <label>目标域名（可改为你能打开的 JavBus 镜像）：</label>
+        <input type="text" name="domain" value="https://www.javbus.com" style="width:360px" />
+        <label>策略：</label>
+        <select name="strategy">
+          <option value="清晰度" selected>清晰度优先</option>
+          <option value="字幕">字幕优先</option>
+        </select>
+        <label>有码/无码：</label>
+        <select name="mosaic">
+          <option value="all" selected>全部</option>
+          <option value="yes">有码</option>
+          <option value="no">无码</option>
+        </select>
+        <button type="submit">开始抓取该女优的作品与磁力</button>
+      </div>
+      <div style="margin-top:6px;font-size:12px;opacity:.8">
+        抓取日志：<a href="/debug/last_crawl_log" target="_blank">data/last_crawl.log</a>
+      </div>
+    </form>
+
+    <!-- 实时进度面板 -->
+    <div id="progress-panel" class="progress-panel" style="display:none;">
+      <div class="progress-header">
+        <h3>抓取进度</h3>
+        <span id="crawl-status" class="status-starting">启动中...</span>
+      </div>
+      
+      <div class="progress-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="works-count">0</span>
+          <span class="stat-label">作品</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="magnets-count">0</span>
+          <span class="stat-label">磁力</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="elapsed-time">0:00</span>
+          <span class="stat-label">耗时</span>
+        </div>
+      </div>
+      
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progress-text">准备中...</div>
+      
+      <div class="log-panel">
+        <div class="log-header">实时日志</div>
+        <div class="log-container" id="log-container">
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span>
+            <span class="log-message">等待启动...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 搜索和筛选工具栏 -->
+    <div class="toolbar">
+      <h2>作品列表 <span id="result-count" class="result-count"></span></h2>
+      
+      <div class="filter-bar">
+        <div class="filter-group">
+          <input type="text" id="search-input" placeholder="搜索番号或标题..." 
+                 oninput="worksManager.setFilter('search', this.value);" />
+        </div>
+        
+        <div class="filter-group">
+          <label>日期范围：</label>
+          <input type="date" id="date-from" onchange="worksManager.setFilter('date_from', this.value);" />
+          <span>至</span>
+          <input type="date" id="date-to" onchange="worksManager.setFilter('date_to', this.value);" />
+        </div>
+        
+        <div class="filter-group">
+          <label>筛选：</label>
+          <select id="has-magnet" onchange="worksManager.setFilter('has_magnet', this.value === '' ? null : this.value === 'true');">
+            <option value="">全部</option>
+            <option value="true">有磁力</option>
+            <option value="false">无磁力</option>
+          </select>
+          
+          <select id="resolution" onchange="worksManager.setFilter('resolution', this.value);">
+            <option value="">全部清晰度</option>
+            <option value="4k">4K</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 作品表格 -->
+    <table class="works-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="code" onclick="worksManager.toggleSort('code')">
+            番号 <span class="sort-icon"></span>
+          </th>
+          <th>标题</th>
+          <th class="sortable" data-sort="date" onclick="worksManager.toggleSort('date')">
+            日期 <span class="sort-icon"></span>
+          </th>
+          <th>最佳磁力</th>
+          <th class="sortable" data-sort="score" onclick="worksManager.toggleSort('score')">
+            分数 <span class="sort-icon"></span>
+          </th>
+          <th>清晰度</th>
+          <th>大小(MB)</th>
+        </tr>
+      </thead>
+      <tbody id="works-table-body">
+        <tr>
+          <td colspan="7" class="loading">加载中...</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <!-- 分页 -->
+    <div id="pagination" class="pagination"></div>
+  </div>
+</body>
+</html>

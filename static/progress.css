@@ -1,0 +1,384 @@
+/* ==================== 实时进度面板 ==================== */
+
+.progress-panel {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.progress-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 18px;
+}
+
+#crawl-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-starting { background: #f39c12; color: #000; }
+.status-running { background: #3498db; color: #fff; }
+.status-completed { background: #2ecc71; color: #fff; }
+.status-error { background: #e74c3c; color: #fff; }
+
+.progress-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3498db, #2ecc71);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+/* ==================== 日志面板 ==================== */
+
+.log-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.log-header {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+}
+
+.log-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.log-entry {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-time {
+    color: rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+    min-width: 60px;
+}
+
+.log-message {
+    color: rgba(255, 255, 255, 0.9);
+    word-break: break-all;
+}
+
+.log-info .log-message { color: #3498db; }
+.log-success .log-message { color: #2ecc71; }
+.log-error .log-message { color: #e74c3c; }
+.log-warning .log-message { color: #f39c12; }
+
+/* ==================== 工具栏和筛选 ==================== */
+
+.toolbar {
+    margin: 24px 0 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toolbar h2 {
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.result-count {
+    font-size: 14px;
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 13px;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+#search-input {
+    min-width: 200px;
+}
+
+/* ==================== 表格排序 ==================== */
+
+.works-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.works-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    cursor: default;
+}
+
+.works-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.works-table th.sortable:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sort-icon::after {
+    content: '↕';
+    margin-left: 4px;
+    opacity: 0.3;
+    font-size: 12px;
+}
+
+.sort-asc .sort-icon::after {
+    content: '↑';
+    opacity: 1;
+    color: #3498db;
+}
+
+.sort-desc .sort-icon::after {
+    content: '↓';
+    opacity: 1;
+    color: #3498db;
+}
+
+.works-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.works-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.works-table .loading,
+.works-table .no-data {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ==================== 分页 ==================== */
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 24px;
+    padding: 16px 0;
+}
+
+.pagination button {
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pagination button.active {
+    background: #3498db;
+    border-color: #3498db;
+}
+
+.pagination button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.pagination span {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+.pagination .page-info {
+    margin-left: 16px;
+    padding-left: 16px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== Toast 通知 ==================== */
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    min-width: 280px;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast-success {
+    border-left: 4px solid #2ecc71;
+}
+
+.toast-error {
+    border-left: 4px solid #e74c3c;
+}
+
+.toast-info {
+    border-left: 4px solid #3498db;
+}
+
+.toast-warning {
+    border-left: 4px solid #f39c12;
+}
+
+.toast-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #666;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 768px) {
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-group {
+        flex-wrap: wrap;
+    }
+    
+    .progress-stats {
+        gap: 16px;
+    }
+    
+    .stat-value {
+        font-size: 22px;
+    }
+    
+    .works-table {
+        font-size: 12px;
+    }
+    
+    .works-table th,
+    .works-table td {
+        padding: 8px;
+    }
+}

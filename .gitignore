@@ -1,0 +1,88 @@
+# ===== 开发文档 & 测试文件 ======
+TEST_RESULTS.md
+OPTIMIZATION_REPORT.md
+OPTIMIZATION_SUMMARY.md
+USER_GUIDE.md
+IMPLEMENTATION_PLAN.md
+test_*.py
+test_enhanced.sh
+*.spec
+
+# ===== 本地 AI Agent 工作流（个人使用）=====
+agents/
+
+# ===== 旧版爬虫（已废弃）=====
+crawler/JavSpider/
+crawler/adapters/
+crawler/bridge.py
+crawler/quality.py
+
+# ===== 重复启动脚本 ======
+start_server.sh
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===== 虚拟环境 =====
+.venv/
+.venv_v2/
+venv/
+env/
+ENV/
+
+# ===== 数据库（勿提交！含用户数据和磁力链接）=====
+data/*.db
+data/*.sqlite
+*.db
+*.sqlite3
+
+# ===== 本地爬取的图片资源（版权内容，勿提交）=====
+# .gitkeep 除外，用于保留目录结构
+static/covers/*
+static/avatars/*
+!static/covers/.gitkeep
+!static/avatars/.gitkeep
+!data/.gitkeep
+
+# ===== 爬虫原始输出（含个人信息）=====
+crawler/JavSpider/CrawlResult/
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== 系统文件 =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local
+
+# ===== AI 工作记录（个人本地工具记录）=====
+.workbuddy/
+
+# ===== 临时测试文件 =====
+/tmp/
+*.tmp
