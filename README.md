@@ -11,6 +11,8 @@
 
 </div>
 
+> **English summary:** A local management tool for crawling and organizing JAV metadata from JavBus. Features async scraping, SQLite storage, actress profiles, magnet link collection, local cover/avatar caching, WebSocket real-time progress, and a built-in web UI. Runs on macOS / Linux / Windows with a single command.
+
 ---
 
 > ⚠️ **免责声明 / Disclaimer**
@@ -51,14 +53,14 @@
 
 **macOS / Linux**
 ```bash
-git clone https://github.com/YOUR_USERNAME/javspider_stack.git
+git clone https://github.com/hk-raints/javspider_stack.git
 cd javspider_stack
 ./start.sh
 ```
 
 **Windows**
 ```bash
-git clone https://github.com/YOUR_USERNAME/javspider_stack.git
+git clone https://github.com/hk-raints/javspider_stack.git
 cd javspider_stack
 python start.py
 ```
