@@ -255,12 +255,16 @@ def get_actress_works(
     total = q.count()
     works = q.offset((page - 1) * per_page).limit(per_page).all()
 
+    # 预加载所有关联数据（解决 N+1 问题）
+    work_ids = [w.id for w in works]
+    preload = _preload_work_relations(db, work_ids)
+
     return {
         "total": total,
         "page": page,
         "per_page": per_page,
         "total_pages": (total + per_page - 1) // per_page,
-        "items": [_work_to_dict(w, db) for w in works],
+        "items": [_work_to_dict(w, db, preload) for w in works],
     }
 
 
@@ -323,12 +327,16 @@ def list_works(
     total = q.count()
     works = q.offset((page - 1) * per_page).limit(per_page).all()
 
+    # 预加载所有关联数据（解决 N+1 问题）
+    work_ids = [w.id for w in works]
+    preload = _preload_work_relations(db, work_ids)
+
     return {
         "total": total,
         "page": page,
         "per_page": per_page,
         "total_pages": (total + per_page - 1) // per_page,
-        "items": [_work_to_dict(w, db) for w in works],
+        "items": [_work_to_dict(w, db, preload) for w in works],
     }
 
 
@@ -624,13 +632,32 @@ def _actress_to_dict(a: Actress, detail: bool = False) -> dict:
     return d
 
 
-def _work_to_dict(w: Work, db: Session) -> dict:
-    # 获取最优磁力
-    picked = db.query(MagnetPick).filter(MagnetPick.work_id == w.id).first()
-    # 获取标签
-    tags = db.query(Tag).join(WorkTag).filter(WorkTag.work_id == w.id).all()
-    # 获取演员
-    cast = db.query(Actress).join(WorkCast).filter(WorkCast.work_id == w.id).all()
+def _work_to_dict(
+    w: Work,
+    db: Session,
+    preload: Optional[dict] = None
+) -> dict:
+    """
+    将 Work ORM 对象转换为字典。
+    
+    Args:
+        w: Work ORM 对象
+        db: 数据库 session（仅在 preload 为空时用于单次查询）
+        preload: 可选，预加载的数据字典，包含:
+            - picked: dict {work_id: MagnetPick}  # work_id → MagnetPick
+            - tags: dict {work_id: [Tag, ...]}  # work_id → 标签列表
+            - cast: dict {work_id: [Actress, ...]}  # work_id → 演员列表
+    """
+    # 使用预加载数据（推荐），避免 N+1 查询
+    if preload:
+        picked = preload.get("picked", {}).get(w.id)
+        tags = preload.get("tags", {}).get(w.id, [])
+        cast = preload.get("cast", {}).get(w.id, [])
+    else:
+        # 兜底：单次查询（仅详情页用）
+        picked = db.query(MagnetPick).filter(MagnetPick.work_id == w.id).first()
+        tags = db.query(Tag).join(WorkTag).filter(WorkTag.work_id == w.id).all()
+        cast = db.query(Actress).join(WorkCast).filter(WorkCast.work_id == w.id).all()
 
     # 处理封面 URL - 转换为本地文件路径
     cover = w.cover or ""
@@ -647,7 +674,7 @@ def _work_to_dict(w: Work, db: Session) -> dict:
         # 如果已经是本地路径则直接使用
         elif not cover.startswith("/static/") and not cover.startswith("http"):
             cover = JAVBUS_BASE + cover
-    
+
     return {
         "id": w.id,
         "code": w.code,
@@ -661,8 +688,8 @@ def _work_to_dict(w: Work, db: Session) -> dict:
         "detail_crawled": w.detail_crawled,
         "magnets_crawled": w.magnets_crawled,
         "tags": [t.name for t in tags],
-        "cast": [{"id": a.id, "name": a.name, "javbus_id": a.javbus_id, 
-                  "avatar": (JAVBUS_BASE + a.avatar) if a.avatar and not a.avatar.startswith("http") else (a.avatar or "")} 
+        "cast": [{"id": a.id, "name": a.name, "javbus_id": a.javbus_id,
+                  "avatar": (JAVBUS_BASE + a.avatar) if a.avatar and not a.avatar.startswith("http") else (a.avatar or "")}
                  for a in cast],
         "picked_magnet": {
             "name": picked.name,
@@ -672,3 +699,44 @@ def _work_to_dict(w: Work, db: Session) -> dict:
             "pick_reason": picked.pick_reason,
         } if picked else None,
     }
+
+
+def _preload_work_relations(db: Session, work_ids: List[int]) -> dict:
+    """
+    批量预加载多个作品的关联数据，解决 N+1 查询问题。
+    返回结构：{work_id: data}
+    """
+    preload = {
+        "picked": {},   # work_id -> MagnetPick or None
+        "tags": {},     # work_id -> [Tag, ...]
+        "cast": {},     # work_id -> [Actress, ...]
+    }
+    if not work_ids:
+        return preload
+
+    # 批量加载 MagnetPick
+    picks = db.query(MagnetPick).filter(MagnetPick.work_id.in_(work_ids)).all()
+    for p in picks:
+        preload["picked"][p.work_id] = p
+
+    # 批量加载 Tags（通过 WorkTag 关联）
+    tag_rows = (
+        db.query(Tag, WorkTag.work_id)
+        .join(WorkTag, Tag.id == WorkTag.tag_id)
+        .filter(WorkTag.work_id.in_(work_ids))
+        .all()
+    )
+    for tag, work_id in tag_rows:
+        preload["tags"].setdefault(work_id, []).append(tag)
+
+    # 批量加载演员（通过 WorkCast 关联）
+    cast_rows = (
+        db.query(Actress, WorkCast.work_id)
+        .join(WorkCast, Actress.id == WorkCast.actress_id)
+        .filter(WorkCast.work_id.in_(work_ids))
+        .all()
+    )
+    for actress, work_id in cast_rows:
+        preload["cast"].setdefault(work_id, []).append(actress)
+
+    return preload
