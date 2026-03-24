@@ -1,6 +1,5 @@
 """
-JavBus Spider - FastAPI 主入口
-三省六部制架构 - 各部门协同工作
+JavSpider Stack - FastAPI 主入口
 
 路由规划：
 GET  /                      - 前端看板主页
@@ -48,7 +47,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("api")
 
-app = FastAPI(title="JavBus Spider - 三省六部制", version="2.0.0")
+app = FastAPI(title="JavSpider Stack", version="2.0.0")
 
 # 静态文件（如有）
 static_dir = Path(__file__).parent.parent / "dashboard"
