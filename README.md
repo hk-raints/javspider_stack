@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**一个基于 FastAPI + SQLite 的 JavBus 数据爬取与本地管理工具**
+**本地优先的 JavBus 数据管家 — 封面永不失效、磁力永不断链**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
@@ -11,7 +11,7 @@
 
 </div>
 
-> **English summary:** A local management tool for crawling and organizing JAV metadata from JavBus. Features async scraping, SQLite storage, actress profiles, magnet link collection, local cover/avatar caching, WebSocket real-time progress, and a built-in web UI. Runs on macOS / Linux / Windows with a single command.
+> **English summary:** JavBus metadata manager with local-first design — covers and avatars cached locally so they never get blocked or expired. Async crawler, SQLite storage, WebSocket real-time progress, magnet auto-pick (UC/4K/subtitle priority), and a clean built-in WebUI. One-command startup on macOS / Linux / Windows.
 
 ---
 
@@ -40,6 +40,18 @@
 | 🌍 **跨平台** | 支持 macOS / Linux / Windows（WSL 或 start.py）|
 
 ---
+
+## 💡 为什么选择 JavSpider Stack？
+
+| 痛点 | JavBus 在线浏览 | JavSpider Stack |
+|------|----------------|----------------|
+| 封面图片被墙 | ❌ 403 无法显示 | ✅ 本地缓存，永不断线 |
+| 女优头像加载失败 | ❌ 依赖外站图片 | ✅ 下载到本地，秒开 |
+| 磁力链接断链 | ❌ 需要每次搜索 | ✅ 存本地数据库，随时查 |
+| 爬取进度不透明 | ❌ 不知道跑到哪了 | ✅ WebSocket 实时推送 |
+| 网络不稳定中断 | ❌ 需要重新来过 | ✅ 断点续爬，自动重试 |
+
+
 
 ## 🚀 快速开始
 
@@ -164,11 +176,7 @@ javspider_stack/
 │   ├── download_actress_avatars.py     # 下载单个女优头像
 │   └── download_missing_covers.py      # 补充下载缺失封面
 ├── dashboard/                  # 前端单页应用
-│   └── index.html
-├── templates/                  # HTML 模板
-│   ├── index.html              # 女优管理页面
-│   ├── actress.html             # 女优详情页
-│   └── batch.html              # 批量爬取页面
+│   └── index.html              # 主页看板（WebUI）
 ├── static/                     # 静态资源（图片运行时生成，不含于仓库）
 │   ├── covers/                 # 作品封面（本地化存储）
 │   ├── avatars/                # 女优头像（本地化存储）
