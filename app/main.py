@@ -375,6 +375,51 @@ async def batch_clear():
     shangshu_queue._queue.clear()
     return {"status": "success"}
 
+@app.get("/api/stats/charts")
+async def get_chart_stats(db: AsyncSession = Depends(get_db)):
+    # Cup size distribution
+    cup_stmt = (
+        select(Actress.cup, func.count(Actress.id))
+        .where(and_(Actress.cup != None, Actress.cup != ""))
+        .group_by(Actress.cup)
+        .order_by(Actress.cup)
+    )
+    cup_results = (await db.execute(cup_stmt)).all()
+    cup_data = [{"label": r[0], "value": r[1]} for r in cup_results]
+
+    # Height distribution (groups of 5cm)
+    # SQLite doesn't have a great way to do floor(height/5)*5, so we'll do some grouping in Python or use CASE
+    height_stmt = (
+        select(Actress.height)
+        .where(and_(Actress.height != None, Actress.height != ""))
+    )
+    heights = (await db.execute(height_stmt)).scalars().all()
+    height_map = {}
+    for h in heights:
+        try:
+            val = int("".join(filter(str.isdigit, h)))
+            group = (val // 5) * 5
+            label = f"{group}-{group+4}cm"
+            height_map[label] = height_map.get(label, 0) + 1
+        except: continue
+    height_data = [{"label": k, "value": v} for k, v in sorted(height_map.items())]
+
+    # Works distribution by year
+    year_stmt = (
+        select(func.substr(Work.release_date, 1, 4), func.count(Work.id))
+        .where(and_(Work.release_date != None, Work.release_date != ""))
+        .group_by(func.substr(Work.release_date, 1, 4))
+        .order_by(func.substr(Work.release_date, 1, 4))
+    )
+    year_results = (await db.execute(year_stmt)).all()
+    year_data = [{"label": r[0], "value": r[1]} for r in year_results]
+
+    return {
+        "cup": cup_data,
+        "height": height_data,
+        "year": year_data
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=settings.SERVER_HOST, port=settings.SERVER_PORT)

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JavSpider Stack</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ===== 基础重置 ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,14 +107,15 @@ body {
 .select-all-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .selected-count { font-size: 13px; color: var(--accent); font-weight: 600; }
 
-.actress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.actress-card { background: var(--surface2); border: 2px solid transparent; border-radius: var(--radius-lg); padding: 12px; cursor: pointer; transition: all .15s; position: relative; }
-.actress-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.actress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+.actress-card { background: var(--surface2); border: 2px solid transparent; border-radius: var(--radius-lg); padding: 12px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+.actress-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
 .actress-card.selected { border-color: var(--primary); background: rgba(108,99,255,.1); }
-.actress-card.selected::after { content: "✓"; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; font-weight: 700; }
-.actress-avatar { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 6px; background: var(--border); display: block; margin-bottom: 8px; }
-.actress-avatar-placeholder { width: 100%; aspect-ratio: 3/4; background: var(--border); border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-.actress-name { font-size: 13px; font-weight: 600; text-align: center; color: var(--text); line-height: 1.4; margin-bottom: 4px; }
+.actress-card.selected::after { content: "✓"; position: absolute; top: 6px; right: 8px; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; font-weight: 700; z-index: 2; }
+.actress-avatar { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 8px; background: var(--border); display: block; margin-bottom: 10px; transition: transform 0.4s; }
+.actress-card:hover .actress-avatar { transform: scale(1.08); }
+.actress-avatar-placeholder { width: 100%; aspect-ratio: 3/4; background: var(--border); border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.actress-name { font-size: 14px; font-weight: 700; text-align: center; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
 .actress-info-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
 .actress-info-row span { background: var(--border); padding: 1px 5px; border-radius: 3px; }
 .actress-meta { font-size: 11px; color: var(--text-muted); text-align: center; }
@@ -155,14 +157,16 @@ body {
 .info-item .val { font-size: 14px; font-weight: 500; }
 
 /* ===== 作品列表 ===== */
-.works-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
-.work-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all .15s; }
-.work-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-.work-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--border); display: block; }
-.work-info { padding: 10px; }
-.work-code { font-size: 12px; font-weight: 700; color: var(--accent); }
-.work-title { font-size: 12px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.work-date { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.works-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+.work-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.work-card:hover { border-color: var(--primary); transform: translateY(-8px); box-shadow: 0 15px 40px rgba(0,0,0,0.6); }
+.work-cover-wrapper { position: relative; overflow: hidden; aspect-ratio: 16/9; }
+.work-cover { width: 100%; height: 100%; object-fit: cover; background: var(--border); display: block; transition: transform 0.4s; }
+.work-card:hover .work-cover { transform: scale(1.1); }
+.work-info { padding: 14px; position: relative; z-index: 1; }
+.work-code { font-size: 13px; font-weight: 800; color: var(--accent); margin-bottom: 6px; }
+.work-title { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.5; height: 3.0em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.work-date { font-size: 11px; color: var(--text-muted); margin-top: 8px; display: flex; align-items: center; gap: 4px; }
 .work-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .work-actresses { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .actress-chip { font-size: 10px; padding: 2px 6px; background: rgba(108,99,255,.2); border-radius: 4px; color: var(--accent); cursor: pointer; }
@@ -219,11 +223,18 @@ body {
 .cast-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: var(--border); }
 
 /* ===== 数据分析 ===== */
-.analysis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-.stat-card .num { font-size: 32px; font-weight: 700; color: var(--primary); }
-.stat-card .desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
-.tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
+.analysis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+.stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; text-align: center; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.stat-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 8px 25px rgba(108, 99, 255, 0.2); }
+.stat-card .num { font-size: 36px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-card .desc { color: var(--text-muted); font-size: 14px; font-weight: 500; margin-top: 8px; }
+
+/* 图表容器 */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 40px; }
+.chart-wrapper { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; min-height: 350px; }
+.chart-wrapper h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: var(--text); border-left: 4px solid var(--primary); padding-left: 12px; }
+
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; background: var(--surface2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border); }
 .tag-cloud-item { padding: 4px 10px; border-radius: 99px; font-size: 12px; cursor: pointer; transition: all .15s; }
 .tag-cloud-item:hover { filter: brightness(1.2); }
 
@@ -524,7 +535,25 @@ body {
 
     <!-- Tab: 数据分析 -->
     <div class="tab-panel" id="tab-analysis">
+      <div class="section-title" style="margin-top:0">📊 庫存概覽</div>
       <div class="analysis-grid" id="analysisStats"></div>
+      
+      <div class="section-title">📉 數據分佈</div>
+      <div class="charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 30px;">
+        <div class="chart-wrapper">
+          <h3>👙 罩杯分佈 (Cup Size)</h3>
+          <canvas id="cupChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <h3>📏 身高分佈 (Height Groups)</h3>
+          <canvas id="heightChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <h3>📅 作品年度趨勢 (Yearly Trend)</h3>
+          <canvas id="yearChart"></canvas>
+        </div>
+      </div>
+
       <div style="margin-bottom:16px">
         <div class="section-title">🏷️ 標籤頻次統計（Top 50）</div>
         <div class="tag-cloud" id="tagCloud">
@@ -581,6 +610,7 @@ const STATE = {
   selected: new Set(),
   ws: null,
   queueData: {},
+  charts: {}, // 存储 Chart.js 实例
 };
 
 // ===================================================
@@ -1147,42 +1177,38 @@ async function loadWorks() {
 function workCardHtml(w) {
   const pick = w.picked_magnet;
   const priorityLabels = {1:'-UC', 2:'-U', 3:'-4K', 4:'uncensored', 5:'-C'};
-  const magnetBadge = pick
+  const magnetHtml = pick
     ? `<div class="magnet-pill ${pick.priority_level <= 2 ? 'uc' : ''}">
          🧲 ${pick.size_str} ${pick.priority_level < 99 ? priorityLabels[pick.priority_level] || '' : ''}
        </div>`
-    : '<div class="no-magnet-pill">無磁力</div>';
+    : '<div class="no-magnet-pill">⏳ 無磁力</div>';
 
   const tags = (w.tags || []).slice(0, 3).map(t => `<span class="tag-chip">${t}</span>`).join('');
   
-  // 尝试从 cast 字段获取女优名字，如果没有则从标题提取
   let actressHtml = '';
   if (w.cast && w.cast.length > 0) {
     actressHtml = w.cast.slice(0, 2).map(a => 
       `<span class="actress-chip" onclick="event.stopPropagation();filterByActress('${escapeAttr(a.name)}')">${a.name}</span>`
     ).join('');
   } else {
-    // 从标题中简单提取女优名字（假设名字在番号之后的某个位置）
-    // 这是一个临时方案，后续应通过 WorkCast 正确关联
     const titleMatch = w.title ? w.title.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+/g) : null;
     if (titleMatch && titleMatch.length > 1) {
-      // 取标题中可能的女优名字（通常是第2个或之后的日文字符串）
       actressHtml = `<span class="actress-chip" onclick="event.stopPropagation();filterByActress('${escapeAttr(titleMatch[1] || '')}')">${titleMatch[1] || ''}</span>`;
     }
   }
 
   return `
     <div class="work-card" onclick="openWorkModal(${w.id})">
-      ${w.cover
-        ? `<img class="work-cover" src="${w.cover}" alt="${w.code}" loading="lazy" onclick="event.stopPropagation();openImgPreview('${w.cover}')" style="cursor:zoom-in" onerror="this.style.display='none'">`
-        : `<div class="work-cover" style="display:flex;align-items:center;justify-content:center;font-size:24px">🎬</div>`}
+      <div class="work-cover-wrapper" style="position: relative; overflow: hidden; aspect-ratio: 16/9; background: var(--border);">
+        <img class="work-cover" src="${w.cover || ''}" loading="lazy" alt="${w.code}" onerror="this.src='/static/placeholder.jpg'">
+      </div>
       <div class="work-info">
         <div class="work-code">${w.code}</div>
         <div class="work-title" title="${escapeHtml(w.title)}">${escapeHtml(w.title) || '—'}</div>
-        ${actressHtml ? `<div class="work-actresses">${actressHtml}</div>` : ''}
-        <div class="work-date">${w.release_date || '—'}</div>
-        ${tags ? `<div class="work-tags">${tags}</div>` : ''}
-        ${magnetBadge}
+        <div class="work-actresses">${actressHtml}</div>
+        <div class="work-date">📅 ${w.release_date || '—'}</div>
+        <div class="work-tags">${tags}</div>
+        <div style="margin-top: 8px">${magnetHtml}</div>
       </div>
     </div>
   `;
@@ -1343,19 +1369,21 @@ function closeWorkModal() {
 // 数据分析
 // ===================================================
 async function loadAnalysis() {
-  const [statsRes, tagsRes] = await Promise.all([
+  const [statsRes, tagsRes, chartsRes] = await Promise.all([
     fetch('/api/stats'),
     fetch('/api/tags/stats?limit=50'),
+    fetch('/api/stats/charts')
   ]);
   const stats = await statsRes.json();
   const tags = await tagsRes.json();
+  const charts = await chartsRes.json();
 
   document.getElementById('analysisStats').innerHTML = `
     <div class="stat-card"><div class="num">${stats.total_actresses}</div><div class="desc">👩 女優總數</div></div>
-    <div class="stat-card"><div class="num">${stats.profile_crawled}</div><div class="desc">✅ 已爬個人信息</div></div>
+    <div class="stat-card"><div class="num">${stats.profile_crawled}</div><div class="desc">✅ 已爬信息</div></div>
     <div class="stat-card"><div class="num">${stats.total_works}</div><div class="desc">🎬 作品總數</div></div>
     <div class="stat-card"><div class="num">${stats.works_with_magnets}</div><div class="desc">🧲 含磁力作品</div></div>
-    <div class="stat-card"><div class="num">${stats.total_magnets}</div><div class="desc">🔗 磁力候選總數</div></div>
+    <div class="stat-card"><div class="num">${stats.total_magnets}</div><div class="desc">🔗 磁力候選</div></div>
     <div class="stat-card"><div class="num">${stats.total_tags}</div><div class="desc">🏷️ 標籤種類</div></div>
   `;
 
@@ -1363,13 +1391,66 @@ async function loadAnalysis() {
     const maxCount = tags[0].count;
     const colors = ['#6c63ff','#a78bfa','#3b82f6','#22c55e','#f59e0b','#ef4444'];
     document.getElementById('tagCloud').innerHTML = tags.map((t, i) => {
-      const size = 10 + Math.round((t.count / maxCount) * 14);
+      const size = 12 + Math.round((t.count / maxCount) * 12);
       const color = colors[i % colors.length];
-      return `<div class="tag-cloud-item" style="font-size:${size}px;background:${color}22;color:${color};border:1px solid ${color}44" 
+      return `<div class="tag-cloud-item" style="font-size:${size}px;background:${color}15;color:${color};border:1px solid ${color}30" 
                onclick="filterWorksByTag('${t.name}')">
                ${t.name} <small>(${t.count})</small></div>`;
     }).join('');
   }
+
+  // 渲染图表
+  renderCupChart(charts.cup);
+  renderHeightChart(charts.height);
+  renderYearChart(charts.year);
+}
+
+function renderChart(id, type, labels, data, label, colors) {
+  if (STATE.charts[id]) STATE.charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  STATE.charts[id] = new Chart(ctx, {
+    type: type,
+    data: {
+      labels: labels,
+      datasets: [{
+        label: label,
+        data: data,
+        backgroundColor: colors,
+        borderColor: colors.map(c => c.replace('0.7', '1')),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: type === 'pie' || type === 'doughnut', position: 'right', labels: { color: '#7c8db5' } }
+      },
+      scales: type === 'bar' || type === 'line' ? {
+        y: { beginAtZero: true, grid: { color: '#2e3349' }, ticks: { color: '#7c8db5' } },
+        x: { grid: { display: false }, ticks: { color: '#7c8db5' } }
+      } : {}
+    }
+  });
+}
+
+function renderCupChart(data) {
+  const labels = data.map(d => d.label);
+  const values = data.map(d => d.value);
+  const colors = ['#6c63ff', '#a78bfa', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'];
+  renderChart('cupChart', 'doughnut', labels, values, '罩杯分佈', colors);
+}
+
+function renderHeightChart(data) {
+  const labels = data.map(d => d.label);
+  const values = data.map(d => d.value);
+  renderChart('heightChart', 'bar', labels, values, '身高分佈', ['#6c63ff']);
+}
+
+function renderYearChart(data) {
+  const labels = data.map(d => d.label);
+  const values = data.map(d => d.value);
+  renderChart('yearChart', 'line', labels, values, '年度趨勢', ['#22c55e']);
 }
 
 function filterWorksByTag(tagName) {
