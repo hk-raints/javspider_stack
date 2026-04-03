@@ -47,6 +47,7 @@ class Actress(Base):
     # 爬取元数据
     profile_crawled = Column(Boolean, default=False, comment="个人信息是否已爬取")
     works_crawled = Column(Boolean, default=False, comment="作品列表是否已爬取")
+    popularity_score = Column(Float, default=0.0, index=True, comment="热度分：按作品数+时间衰减计算，值越大越热门")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

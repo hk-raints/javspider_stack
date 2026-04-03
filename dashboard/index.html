@@ -246,6 +246,100 @@ body {
   .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
   .actress-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
+
+/* ================================================
+   女优筛选栏 — 响应式布局
+   ================================================ */
+
+/* 通用工具栏响应式 */
+@media (max-width: 900px) {
+  .toolbar {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .toolbar {
+    gap: 6px;
+  }
+}
+
+/* 第一行工具栏（小屏：每行 2-3 个元素） */
+@media (max-width: 900px) {
+  .tab-panel.active > .toolbar:first-of-type {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .tab-panel.active > .toolbar:first-of-type > * {
+    width: 100% !important;
+    min-width: 0;
+  }
+  /* 爬取按钮占满第二行 */
+  .tab-panel.active > .toolbar:first-of-type .btn-primary {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-panel.active > .toolbar:first-of-type {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 第二行快捷筛选（小屏：多列网格） */
+@media (max-width: 900px) {
+  .actress-quick-filter {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .actress-quick-filter > * {
+    width: 100% !important;
+    min-width: 0;
+    font-size: 11px !important;
+    padding: 5px 6px !important;
+  }
+  .actress-quick-filter > span:first-child {
+    grid-column: 1 / -1;
+    font-size: 11px !important;
+    color: var(--text-muted);
+  }
+  .actress-quick-filter .btn-ghost {
+    grid-column: 1 / -1;
+    justify-self: start;
+    width: auto !important;
+  }
+  .actress-quick-filter #actressFilterSummary {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .actress-quick-filter {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .actress-quick-filter {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 分页条响应式 */
+@media (max-width: 600px) {
+  .pagination-bar {
+    gap: 4px !important;
+    justify-content: center;
+  }
+  .pagination-bar .page-info {
+    display: none;
+  }
+  .pagination-bar .page-jump-input {
+    width: 44px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -293,16 +387,78 @@ body {
 
     <!-- Tab: 女优列表 -->
     <div class="tab-panel active" id="tab-actresses">
-      <div class="toolbar">
-        <div class="search-box">
-          <input class="input" id="actressSearch" placeholder="搜索女優名字..." oninput="actressSearchChanged()">
+      <!-- 第一行：基础搜索 -->
+      <div class="toolbar" style="margin-bottom:8px">
+        <div class="search-box" style="flex:0 0 280px">
+          <input class="input" id="actressSearch" placeholder="🔍 搜索女優名字..." oninput="actressSearchChanged()">
         </div>
-        <select class="select" id="actressFilter" onchange="loadActresses()">
+        <select class="select" id="actressProfileFilter" onchange="loadActresses()">
           <option value="">全部</option>
-          <option value="false">未爬個人信息</option>
-          <option value="true">已爬個人信息</option>
+          <option value="true">✅ 已爬個人信息</option>
+          <option value="false">⏳ 未爬個人信息</option>
+        </select>
+        <select class="select" id="actressWorksFilter" onchange="loadActresses()">
+          <option value="">全部作品</option>
+          <option value="has_works">有作品</option>
+          <option value="no_works">無作品</option>
+        </select>
+        <select class="select" id="actressSort" onchange="loadActresses()" style="width:130px">
+          <option value="popularity_desc" selected>🔥 熱門</option>
+          <option value="popularity_asc">🔥 熱門 ↑</option>
+          <option value="name_asc">姓名 ↑</option>
+          <option value="name_desc">姓名 ↓</option>
+          <option value="created_desc">新入庫</option>
+          <option value="created_asc">早入庫</option>
+        </select>
+        <select class="select" id="actressPerPage" onchange="onPerPageChange()" style="width:90px">
+          <option value="30">30/頁</option>
+          <option value="50" selected>50/頁</option>
+          <option value="100">100/頁</option>
+          <option value="200">200/頁</option>
         </select>
         <button class="btn btn-primary btn-sm" onclick="crawlAllActresses()">🌐 爬取全站女優</button>
+      </div>
+      <!-- 第二行：快捷筛选 -->
+      <div class="toolbar actress-quick-filter" style="margin-bottom:12px;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">快捷篩選：</span>
+        <select class="select" id="actressCupFilter" onchange="loadActresses()" style="width:80px;font-size:12px">
+          <option value="">罩杯</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="D">D</option>
+          <option value="E">E</option>
+          <option value="F">F</option>
+          <option value="G">G</option>
+          <option value="H">H</option>
+        </select>
+        <select class="select" id="actressAgeFilter" onchange="loadActresses()" style="width:95px;font-size:12px">
+          <option value="">年齡</option>
+          <option value="18-25">18-25歲</option>
+          <option value="26-30">26-30歲</option>
+          <option value="31-35">31-35歲</option>
+          <option value="36-40">36-40歲</option>
+          <option value="40-99">40歲以上</option>
+        </select>
+        <select class="select" id="actressHeightFilter" onchange="loadActresses()" style="width:100px;font-size:12px">
+          <option value="">身高</option>
+          <option value="150-">≤150cm</option>
+          <option value="151-155">151-155cm</option>
+          <option value="156-160">156-160cm</option>
+          <option value="161-165">161-165cm</option>
+          <option value="166-170">166-170cm</option>
+          <option value="171+">171cm+</option>
+        </select>
+        <select class="select" id="actressWorksCountFilter" onchange="loadActresses()" style="width:110px;font-size:12px">
+          <option value="">作品數</option>
+          <option value="1-5">1-5部</option>
+          <option value="6-20">6-20部</option>
+          <option value="21-50">21-50部</option>
+          <option value="51-100">51-100部</option>
+          <option value="100+">100部以上</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearAllFilters()" style="font-size:12px;padding:5px 10px">重置</button>
+        <span id="actressFilterSummary" style="font-size:12px;color:var(--accent);margin-left:4px"></span>
       </div>
       <div class="select-all-bar">
         <button class="btn btn-ghost btn-sm" onclick="selectAll()">全選本頁</button>
@@ -313,7 +469,8 @@ body {
       <div id="actressGrid" class="actress-grid">
         <div class="loading"><div class="spinner"></div> 加載中...</div>
       </div>
-      <div class="pagination-bar" id="actressPagination"></div>
+      <!-- 增强分页条 -->
+      <div id="actressPagination" class="pagination-bar" style="flex-wrap:wrap;gap:8px"></div>
     </div>
 
     <!-- Tab: 全部作品 -->
@@ -574,29 +731,86 @@ function renderTaskPanels(progressMap) {
 }
 
 // ===================================================
-// 女优列表 - 分页模式
+// 女优列表 - 增强分页模式
 // ===================================================
 let actressPage = 1;
+let actressPerPage = 50;
 let actressSearchTimer;
 
-// 搜索框变化时延迟执行搜索
 function actressSearchChanged() {
   clearTimeout(actressSearchTimer);
   actressSearchTimer = setTimeout(() => {
-    actressPage = 1; // 搜索时重置到第一页
+    actressPage = 1;
     loadActresses();
   }, 400);
 }
 
+function onPerPageChange() {
+  actressPerPage = parseInt(document.getElementById('actressPerPage').value);
+  actressPage = 1;
+  loadActresses();
+}
+
 async function loadActresses() {
-  const search = document.getElementById('actressSearch').value;
-  const filter = document.getElementById('actressFilter').value;
+  const search = document.getElementById('actressSearch').value.trim();
+  const profileFilter = document.getElementById('actressProfileFilter').value;
+  const worksFilter = document.getElementById('actressWorksFilter').value;
+  const sort = document.getElementById('actressSort').value;
+  const cupFilter = document.getElementById('actressCupFilter').value;
+  const ageFilter = document.getElementById('actressAgeFilter').value;
+  const heightFilter = document.getElementById('actressHeightFilter').value;
+  const worksCountFilter = document.getElementById('actressWorksCountFilter').value;
+
   const grid = document.getElementById('actressGrid');
   grid.innerHTML = '<div class="loading"><div class="spinner"></div> 加載中...</div>';
 
-  const params = new URLSearchParams({ page: actressPage, per_page: 50 });
+  const params = new URLSearchParams({
+    page: actressPage,
+    per_page: actressPerPage,
+    sort_by: sort.split('_')[0],
+    sort_order: sort.split('_')[1],
+  });
   if (search) params.append('search', search);
-  if (filter !== '') params.append('profile_crawled', filter);
+  if (profileFilter !== '') params.append('profile_crawled', profileFilter);
+
+  // 作品数筛选
+  if (worksFilter === 'has_works') {
+    params.append('min_works', '1');
+  } else if (worksFilter === 'no_works') {
+    params.append('max_works', '0');
+  }
+  // 罩杯筛选
+  if (cupFilter) params.append('cup', cupFilter);
+  // 年龄筛选
+  if (ageFilter) {
+    const parts = ageFilter.split('-');
+    const minAge = parseInt(parts[0]);
+    const maxAge = parts[1] === '99' ? 99 : parseInt(parts[1]);
+    if (minAge) params.append('min_age', minAge);
+    if (maxAge < 99) params.append('max_age', maxAge);
+  }
+  // 身高筛选
+  if (heightFilter) {
+    if (heightFilter.endsWith('-')) {
+      params.append('max_height', parseInt(heightFilter));
+    } else if (heightFilter.startsWith('+')) {
+      params.append('min_height', parseInt(heightFilter));
+    } else {
+      const [minH, maxH] = heightFilter.split('-').map(v => parseInt(v));
+      if (minH) params.append('min_height', minH);
+      if (maxH) params.append('max_height', maxH);
+    }
+  }
+  // 作品数量筛选
+  if (worksCountFilter) {
+    if (worksCountFilter === '100+') {
+      params.append('min_works', '100');
+    } else {
+      const [minW, maxW] = worksCountFilter.split('-').map(v => parseInt(v));
+      if (minW) params.append('min_works', minW);
+      if (maxW) params.append('max_works', maxW);
+    }
+  }
 
   const res = await fetch('/api/actresses?' + params);
   const data = await res.json();
@@ -604,51 +818,55 @@ async function loadActresses() {
   STATE.actresses = { page: data.page, total: data.total, totalPages: data.total_pages };
 
   if (!data.items.length) {
-    grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>沒有找到女優<br><small>嘗試點擊「爬取全站女優」</small></div>';
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>沒有找到女優<br><small>嘗試調整篩選條件</small></div>';
     renderActressPagination();
+    updateFilterSummary();
     return;
   }
 
   grid.innerHTML = data.items.map(a => `
-    <div class="actress-card ${STATE.selected.has(a.id) ? 'selected' : ''}" 
-         id="acard-${a.id}"
-         onclick="toggleSelect(${a.id}, this)">
-      ${a.avatar
-        ? `<img class="actress-avatar" src="${a.avatar}" alt="${a.name}" loading="lazy" onerror="this.style.display='none'">`
-        : `<div class="actress-avatar-placeholder">👩</div>`}
-      <div class="actress-name">${a.name}</div>
-      <div class="actress-info-row">
-        ${a.birthday ? `<span>${a.birthday}</span>` : ''}
-        ${a.age ? `<span>${a.age}岁</span>` : ''}
-        ${a.height ? `<span>${a.height}cm</span>` : ''}
-        ${a.cup ? `<span>${a.cup}</span>` : ''}
-      </div>
-      <div class="actress-meta">
-        <span class="crawled-badge ${a.profile_crawled ? 'done' : 'pending'}"></span>
-        ${a.profile_crawled ? '已爬' : '待爬'}
+    <div class="actress-card ${STATE.selected.has(a.id) ? 'selected' : ''}"
+         id="acard-${a.id}">
+      <div onclick="toggleSelect(${a.id}, this.closest('.actress-card'))">
+        ${a.avatar
+          ? `<img class="actress-avatar" src="${a.avatar}" alt="${a.name}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="actress-avatar-placeholder">👩</div>`}
+        <div class="actress-name">${a.name}</div>
+        <div class="actress-info-row">
+          ${a.age ? `<span>${a.age}歲</span>` : ''}
+          ${a.height ? `<span>${a.height}</span>` : ''}
+          ${a.cup ? `<span>${a.cup}罩</span>` : ''}
+        </div>
+        <div class="actress-meta">
+          <span class="crawled-badge ${a.profile_crawled ? 'done' : 'pending'}"></span>
+          ${a.profile_crawled ? '已爬' : '待爬'}
+        </div>
       </div>
     </div>
   `).join('');
 
   // 双击打开详情
   document.querySelectorAll('.actress-card').forEach(card => {
-    let clickTimer = null;
     const aid = parseInt(card.id.replace('acard-', ''));
-    card.addEventListener('click', (e) => {
-      if (clickTimer) {
-        clearTimeout(clickTimer);
-        clickTimer = null;
-        openActressModal(aid);
-      } else {
-        clickTimer = setTimeout(() => {
-          clickTimer = null;
-        }, 250);
-      }
+    card.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      openActressModal(aid);
     });
   });
 
   renderActressPagination();
+  updateFilterSummary();
   updateSelectedCount();
+}
+
+function updateFilterSummary() {
+  const summary = document.getElementById('actressFilterSummary');
+  if (!summary) return;
+  const { total, totalPages, page } = STATE.actresses;
+  const parts = [];
+  if (totalPages > 1) parts.push(`第 ${page}/${totalPages} 頁`);
+  parts.push(`共 ${total} 位`);
+  summary.textContent = parts.join(' · ');
 }
 
 function toggleSelect(id, el) {
@@ -683,31 +901,82 @@ function updateSelectedCount() {
   document.getElementById('btnAddToQueue').disabled = n === 0;
 }
 
+function clearAllFilters() {
+  document.getElementById('actressSearch').value = '';
+  document.getElementById('actressProfileFilter').value = '';
+  document.getElementById('actressWorksFilter').value = '';
+  document.getElementById('actressSort').value = 'name_asc';
+  document.getElementById('actressCupFilter').value = '';
+  document.getElementById('actressAgeFilter').value = '';
+  document.getElementById('actressHeightFilter').value = '';
+  document.getElementById('actressWorksCountFilter').value = '';
+  actressPage = 1;
+  loadActresses();
+}
+
 function renderActressPagination() {
   const { page, totalPages, total } = STATE.actresses;
   const bar = document.getElementById('actressPagination');
-  if (totalPages <= 1) { 
+  if (totalPages <= 1) {
     bar.innerHTML = `<span class="page-info">共 ${total} 位女优</span>`;
     return;
   }
 
+  const maxButtons = 7;
   let html = '';
-  if (page > 1) html += `<button class="page-btn" onclick="goActressPage(${page-1})">‹ 上一頁</button>`;
 
-  const start = Math.max(1, page - 2);
-  const end = Math.min(totalPages, page + 2);
-  for (let i = start; i <= end; i++) {
-    html += `<button class="page-btn ${i===page?'active':''}" onclick="goActressPage(${i})">${i}</button>`;
+  // 首页
+  html += `<button class="page-btn" onclick="goActressPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>`;
+  // 上一页
+  html += `<button class="page-btn" onclick="goActressPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>`;
+
+  // 居中页码范围
+  let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  if (endPage - startPage < maxButtons - 1) {
+    startPage = Math.max(1, endPage - maxButtons + 1);
   }
 
-  if (page < totalPages) html += `<button class="page-btn" onclick="goActressPage(${page+1})">下一頁 ›</button>`;
-  html += `<span class="page-info">${page}/${totalPages} 頁，共 ${total} 人</span>`;
+  // 省略号 + 首页
+  if (startPage > 1) {
+    html += `<button class="page-btn" onclick="goActressPage(1)">1</button>`;
+    if (startPage > 2) html += `<span style="color:var(--text-muted);padding:0 2px">…</span>`;
+  }
+
+  // 页码按钮
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="goActressPage(${i})">${i}</button>`;
+  }
+
+  // 省略号 + 末页
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) html += `<span style="color:var(--text-muted);padding:0 2px">…</span>`;
+    html += `<button class="page-btn" onclick="goActressPage(${totalPages})">${totalPages}</button>`;
+  }
+
+  // 下一页
+  html += `<button class="page-btn" onclick="goActressPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>`;
+  // 末页
+  html += `<button class="page-btn" onclick="goActressPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
+
+  // 跳页控件
+  html += `<span class="page-info" style="margin-left:8px">跳至</span>`;
+  html += `<input type="number" id="actressJumpInput" class="page-jump-input" min="1" max="${totalPages}" value="${page}" onkeydown="if(event.key==='Enter')goActressPage(parseInt(this.value))" style="width:56px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px;text-align:center">`;
+  html += `<span class="page-info">頁</span>`;
+  html += `<button class="page-btn" onclick="goActressPage(parseInt(document.getElementById('actressJumpInput').value))" style="padding:5px 10px">GO</button>`;
+
+  // 统计
+  html += `<span class="page-info" style="margin-left:12px">${page}/${totalPages} 頁，共 ${total} 位</span>`;
+
   bar.innerHTML = html;
 }
 
 function goActressPage(p) {
-  actressPage = p;
+  const totalPages = STATE.actresses.totalPages;
+  const target = Math.max(1, Math.min(p, totalPages || 1));
+  actressPage = target;
   loadActresses();
+  document.getElementById('actressGrid') && document.getElementById('actressGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ===================================================

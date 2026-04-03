@@ -27,6 +27,7 @@ import logging
 import os
 from typing import Optional, List
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, BackgroundTasks, Query
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -48,6 +49,26 @@ logging.basicConfig(
 logger = logging.getLogger("api")
 
 app = FastAPI(title="JavSpider Stack", version="2.0.0")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """启动时：确保 popularity_score 列存在"""
+    from sqlalchemy import text
+    from db import SessionLocal
+    try:
+        db = SessionLocal()
+        db.execute(text("ALTER TABLE actresses ADD COLUMN popularity_score REAL DEFAULT 0.0"))
+        db.commit()
+        db.close()
+        logger.info("[lifespan] Added popularity_score column")
+    except Exception:
+        try:
+            db.close()
+        except Exception:
+            pass
+        logger.info("[lifespan] popularity_score column already exists")
+    yield
 
 # 静态文件（如有）
 static_dir = Path(__file__).parent.parent / "dashboard"
@@ -159,27 +180,286 @@ def list_actresses(
     per_page: int = Query(50, ge=1, le=200),
     search: Optional[str] = Query(None),
     profile_crawled: Optional[bool] = Query(None),
+    # 扩展筛选
+    works_crawled: Optional[bool] = Query(None, description="是否有作品数据"),
+    min_works: Optional[int] = Query(None, ge=0, description="最小作品数"),
+    max_works: Optional[int] = Query(None, ge=0, description="最大作品数"),
+    min_age: Optional[int] = Query(None, ge=0, description="最小年龄"),
+    max_age: Optional[int] = Query(None, ge=0, description="最大年龄"),
+    min_height: Optional[int] = Query(None, ge=0, description="最小身高(cm)"),
+    max_height: Optional[int] = Query(None, ge=0, description="最大身高(cm)"),
+    cup: Optional[str] = Query(None, description="罩杯筛选，如 F、G"),
+    # 排序
+    sort_by: str = Query("popularity", description="排序字段：popularity|name|age|height|works_count|created_at"),
+    sort_order: str = Query("desc", description="排序方向：asc|desc"),
     db: Session = Depends(get_db)
 ):
     """
-    获取女优列表（分页+搜索）
+    获取女优列表（增强分页+多维筛选+排序）
+
+    支持的筛选条件：
+    - search: 姓名搜索（模糊匹配）
+    - profile_crawled: 是否已爬取个人信息
+    - works_crawled: 是否有作品数据
+    - min_works / max_works: 作品数量范围
+    - min_age / max_age: 年龄范围
+    - min_height / max_height: 身高范围(cm)
+    - cup: 罩杯（如 A、B、C、D、E、F、G、H）
+
+    支持的排序（默认热度降序）：
+    - popularity: 热度分降序（需先调用 /api/actresses/recalc-popularity 计算）
+    - name: 按姓名
+    - age: 按年龄
+    - height: 按身高
+    - works_count: 按作品数
+    - created_at: 按入库时间
     """
+    from sqlalchemy import func, case, cast, Integer
+
+    # 基础查询
     q = db.query(Actress)
 
     if search:
         q = q.filter(Actress.name.like(f"%{search}%"))
+
     if profile_crawled is not None:
         q = q.filter(Actress.profile_crawled == profile_crawled)
 
+    # ── 扩展筛选：年龄 ──
+    if min_age is not None:
+        q = q.filter(
+            func.subtract(
+                func.date('now'),
+                cast(Actress.birthday, type_=Integer)
+            ) >= min_age
+        )
+
+    # ── 扩展筛选：身高 ──
+    if min_height is not None:
+        # 提取数值（去掉 cm）
+        height_val = func.cast(
+            func.replace(Actress.height, 'cm', ''),
+            Integer
+        )
+        q = q.filter(height_val >= min_height)
+    if max_height is not None:
+        height_val = func.cast(
+            func.replace(Actress.height, 'cm', ''),
+            Integer
+        )
+        q = q.filter(height_val <= max_height)
+
+    # ── 罩杯筛选 ──
+    if cup:
+        # 支持多罩杯，用逗号分隔
+        cups = [c.strip().upper() for c in cup.split(',')]
+        q = q.filter(Actress.cup.in_(cups))
+
+    # ── 排序 ──
+    # popularity 使用预计算的热度分；其余使用字段本身
+    if sort_by == 'popularity':
+        # 热度分降序，同分时按姓名字母排（让无热度女优也有序）
+        if sort_order == 'asc':
+            q = q.order_by(Actress.popularity_score.asc(), Actress.name.asc())
+        else:
+            q = q.order_by(Actress.popularity_score.desc(), Actress.name.asc())
+    elif sort_by == 'works_count':
+        # 作品数需要子查询
+        works_count_subq = (
+            db.query(
+                WorkCast.actress_id,
+                func.count(WorkCast.work_id).label('works_count')
+            )
+            .group_by(WorkCast.actress_id)
+            .subquery()
+        )
+        q = q.outerjoin(works_count_subq, Actress.id == works_count_subq.c.actress_id)
+        if sort_order == 'asc':
+            q = q.order_by(func.coalesce(works_count_subq.c.works_count, 0).asc())
+        else:
+            q = q.order_by(func.coalesce(works_count_subq.c.works_count, 0).desc())
+    else:
+        sort_column = {
+            'name': Actress.name,
+            'age': Actress.age,
+            'height': Actress.height,
+            'created_at': Actress.created_at,
+        }.get(sort_by, Actress.name)
+        if sort_order == 'asc':
+            q = q.order_by(sort_column.asc())
+        else:
+            q = q.order_by(sort_column.desc())
+
+    # ── 作品数筛选（需要子查询） ──
+    if min_works is not None or max_works is not None:
+        # 子查询：统计每个女优的作品数
+        works_count_subq = (
+            db.query(
+                WorkCast.actress_id,
+                func.count(WorkCast.work_id).label('works_count')
+            )
+            .group_by(WorkCast.actress_id)
+            .subquery()
+        )
+
+        if min_works is not None:
+            q = q.outerjoin(
+                works_count_subq,
+                Actress.id == works_count_subq.c.actress_id
+            ).filter(
+                func.coalesce(works_count_subq.c.works_count, 0) >= min_works
+            )
+        if max_works is not None:
+            if min_works is None:
+                q = q.outerjoin(
+                    works_count_subq,
+                    Actress.id == works_count_subq.c.actress_id
+                )
+            q = q.filter(
+                func.coalesce(works_count_subq.c.works_count, 0) <= max_works
+            )
+
     total = q.count()
-    items = q.order_by(Actress.name.asc()).offset((page - 1) * per_page).limit(per_page).all()
+    items = q.offset((page - 1) * per_page).limit(per_page).all()
 
     return {
         "total": total,
         "page": page,
         "per_page": per_page,
-        "total_pages": (total + per_page - 1) // per_page,
+        "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0,
         "items": [_actress_to_dict(a) for a in items],
+    }
+
+
+@app.post("/api/actresses/recalc-popularity")
+async def recalc_popularity(background: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    重新计算所有女优的热度分（后台执行）。
+
+    算法：热度分 = Σ(每部作品的权重)
+    权重 = max(0, 1 - months_since_release / 24)
+    即：24 个月内的作品按时间衰减，近作权重高，超24个月不计。
+
+    计算完成后自动更新 actresses.popularity_score 字段。
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import text
+    import re
+
+    def _parse_date(s: str):
+        """解析 '2020-01-15' 或 '2020/01/15' 格式日期"""
+        if not s:
+            return None
+        m = re.match(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})", s.strip())
+        if not m:
+            return None
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)), tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    def _calc():
+        # 使用独立 session，避免和 FastAPI session 冲突
+        from db.session import SessionLocal
+
+        calc_db = SessionLocal()
+        try:
+            # 1. 确保列存在
+            try:
+                calc_db.execute(text("ALTER TABLE actresses ADD COLUMN popularity_score REAL DEFAULT 0.0"))
+                calc_db.commit()
+            except Exception:
+                calc_db.rollback()  # 列可能已存在
+
+            # 2. 读取所有 actress_id + release_date
+            rows = calc_db.execute(text("""
+                SELECT a.id, w.release_date
+                FROM actresses a
+                JOIN work_cast wc ON wc.actress_id = a.id
+                JOIN works w ON w.id = wc.work_id
+                WHERE w.release_date IS NOT NULL AND w.release_date != ''
+            """)).fetchall()
+
+            # 3. 计算热度分
+            now = datetime.now(timezone.utc)
+            scores: dict[int, float] = {}
+
+            for actress_id, release_date_str in rows:
+                release_date = _parse_date(release_date_str)
+                if release_date is None:
+                    continue
+                months_ago = (now - release_date).days / 30.0
+                weight = max(0.0, 1.0 - months_ago / 24.0)
+                scores[actress_id] = scores.get(actress_id, 0.0) + weight
+
+            # 4. 批量写入
+            if scores:
+                for aid, score in scores.items():
+                    calc_db.execute(
+                        text("UPDATE actresses SET popularity_score = :score WHERE id = :id"),
+                        {"score": round(score, 4), "id": aid}
+                    )
+
+            # 5. 无作品的女优热度清零
+            calc_db.execute(text(
+                "UPDATE actresses SET popularity_score = 0.0 "
+                "WHERE id NOT IN (SELECT DISTINCT actress_id FROM work_cast)"
+            ))
+            calc_db.commit()
+            return len(scores)
+        finally:
+            calc_db.close()
+
+    background.add_task(_calc)
+    return {"status": "started", "message": "热度计算已在后台启动，请 1-2 分钟后刷新页面查看结果。"}
+
+
+@app.post("/api/actresses/sync-javdb")
+async def sync_javdb_rankings(
+    background: BackgroundTasks,
+    pages: int = Query(3, ge=1, le=10, description="抓取 JAVDB 前几页演员"),
+    limit: int = Query(60, ge=1, le=200, description="每页最多处理多少演员"),
+):
+    """
+    从 JAVDB 抓取真实热度排名，同步更新本地热度分。
+
+    使用 agent-browser 自动化访问 JAVDB，按页面顺序和位置计算热度分：
+    - 热度分 = (5 - page + 1) * 1000 + (60 - position + 1) ，归一化到 0-100
+    - 通过演员姓名与本地数据库匹配更新
+
+    返回后台任务已启动，1-3 分钟内完成。
+    """
+    import shutil, subprocess
+
+    script_path = Path(__file__).parent.parent / "scripts" / "sync_javdb_rankings.py"
+    log_file = Path("/tmp/javdb_sync.log")
+
+    def _run_sync():
+        env = os.environ.copy()
+        python = shutil.which("python3") or "python3"
+        cmd = [
+            python, str(script_path),
+            "--pages", str(pages),
+            "--limit", str(limit),
+        ]
+        with open(log_file, "w") as f:
+            subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, env=env)
+
+    # 检查 agent-browser 是否可用
+    check = subprocess.run(
+        ["which", "agent-browser"], capture_output=True
+    )
+    if check.returncode != 0:
+        return JSONResponse(
+            {"error": "agent-browser 未安装，无法同步 JAVDB 排名。请先运行: npm install -g agent-browser"},
+            status_code=503,
+        )
+
+    background.add_task(_run_sync)
+    return {
+        "status": "started",
+        "message": f"JAVDB 热度同步已在后台启动（抓取 {pages} 页，最多 {limit} 条），1-3 分钟后刷新页面查看结果。",
+        "log": str(log_file),
     }
 
 
@@ -614,6 +894,7 @@ def _actress_to_dict(a: Actress, detail: bool = False) -> dict:
         "avatar": avatar,
         "profile_crawled": a.profile_crawled,
         "works_crawled": a.works_crawled,
+        "popularity_score": a.popularity_score or 0.0,
         # 始终返回基本信息
         "birthday": a.birthday,
         "age": a.age,

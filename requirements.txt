@@ -2,16 +2,21 @@
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 websockets>=12.0
+pydantic-settings>=2.2.1
+python-dotenv>=1.0.1
 
 # HTTP 客户端（爬虫）
 httpx>=0.27.0
+playwright>=1.42.0
 
 # HTML 解析
 beautifulsoup4>=4.12.0
 lxml>=5.2.0
 
 # 数据库
-sqlalchemy>=2.0.0
+sqlalchemy[asyncio]>=2.0.28
+alembic>=1.13.1
+aiosqlite>=0.20.0
 
 # 其他工具
 python-multipart>=0.0.9
@@ -19,3 +24,4 @@ python-multipart>=0.0.9
 # 运维脚本（下载封面/头像）
 requests>=2.31.0
 psutil>=5.9.0
+pillow>=10.2.0  # 图片处理

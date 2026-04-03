@@ -1,36 +1,74 @@
 """
-全局配置 - 工部负责维护
+全局配置 - 使用 Pydantic Settings 管理环境变量
 """
-import os
 from pathlib import Path
+from typing import List, Dict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ===== 路径 =====
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
-DB_PATH = DATA_DIR / "javbus.db"
-DB_URL = f"sqlite:///{DB_PATH}"
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
-# ===== JavBus 站点 =====
-JAVBUS_BASE = "https://www.javbus.com"
-JAVBUS_ACTRESSES_URL = f"{JAVBUS_BASE}/actresses"
+    # Server Config
+    BASE_DIR: Path = BASE_DIR
+    DATA_DIR: Path = DATA_DIR
+    SERVER_HOST: str = "0.0.0.0"
+    SERVER_PORT: int = 8088
+    API_KEY: str = ""  # 如果为空则不启用鉴权
 
-# ===== 爬虫安全配置（工部 - 稳定优先）=====
-# 请求间隔：随机 3~8 秒
-REQUEST_DELAY_MIN = 3.0
-REQUEST_DELAY_MAX = 8.0
+    # Database Config
+    # 默认使用 aiosqlite 支持异步
+    DB_URL: str = f"sqlite+aiosqlite:///{DATA_DIR}/javbus.db"
 
-# 最大重试次数
-MAX_RETRIES = 5
+    # JavBus Config
+    JAVBUS_BASE: str = "https://www.javbus.com"
+    
+    @property
+    def JAVBUS_ACTRESSES_URL(self) -> str:
+        return f"{self.JAVBUS_BASE}/actresses"
 
-# 遇到 429/503 时额外等待（秒）
-RATE_LIMIT_BACKOFF = 60.0
+    # Scraper Security Config
+    REQUEST_DELAY_MIN: float = 3.0
+    REQUEST_DELAY_MAX: float = 8.0
+    MAX_RETRIES: int = 5
+    RATE_LIMIT_BACKOFF: float = 60.0
+    REQUEST_TIMEOUT: int = 30
 
-# 请求超时
-REQUEST_TIMEOUT = 30
+    # Proxy Config
+    HTTP_PROXY: str = ""
 
-# ===== User-Agent 池（工部维护）=====
+    # Magnet Rules
+    MAGNET_PRIORITY: List[str] = ["-UC", "-U", "-4K", "uncensored", "-C"]
+    MAGNET_SIZE_DIFF_THRESHOLD: float = 0.10
+
+settings = Settings()
+
+# ===== 导出常用变量以便旧代码使用 =====
+JAVBUS_BASE = settings.JAVBUS_BASE
+JAVBUS_ACTRESSES_URL = settings.JAVBUS_ACTRESSES_URL
+DB_URL = settings.DB_URL
+BASE_DIR = settings.BASE_DIR
+DATA_DIR = settings.DATA_DIR
+REQUEST_DELAY_MIN = settings.REQUEST_DELAY_MIN
+REQUEST_DELAY_MAX = settings.REQUEST_DELAY_MAX
+MAX_RETRIES = settings.MAX_RETRIES
+RATE_LIMIT_BACKOFF = settings.RATE_LIMIT_BACKOFF
+REQUEST_TIMEOUT = settings.REQUEST_TIMEOUT
+HTTP_PROXY = settings.HTTP_PROXY
+MAGNET_PRIORITY = settings.MAGNET_PRIORITY
+MAGNET_SIZE_DIFF_THRESHOLD = settings.MAGNET_SIZE_DIFF_THRESHOLD
+SERVER_HOST = settings.SERVER_HOST
+SERVER_PORT = settings.SERVER_PORT
+
+# ===== User-Agent 池 =====
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
@@ -60,21 +98,6 @@ DEFAULT_HEADERS = {
     "Sec-Fetch-Mode": "navigate",
     "Sec-Fetch-Site": "same-origin",
     "Upgrade-Insecure-Requests": "1",
-    # existmag=mag 让 javbus 返回磁力链接版本
     "Cookie": "existmag=mag",
     "Referer": "https://www.javbus.com/",
 }
-
-# ===== 代理配置（默认不使用）=====
-PROXY = os.environ.get("HTTP_PROXY", "")  # 如需代理，设置环境变量 HTTP_PROXY
-
-# ===== 磁力筛选规则（户部维护）=====
-# 优先级顺序（越靠前优先级越高）
-MAGNET_PRIORITY = ["-UC", "-U", "-4K", "uncensored", "-C"]
-
-# 大小差异阈值（10%以内视为相同）
-MAGNET_SIZE_DIFF_THRESHOLD = 0.10
-
-# ===== 前端配置 =====
-SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 8088

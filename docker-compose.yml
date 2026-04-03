@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  javspider:
+    build: .
+    container_name: javspider_stack
+    restart: always
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./data:/app/data
+      - ./config.py:/app/config.py
+      - ./.env:/app/.env
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Shanghai
+    # 如需代理，可在 .env 中配置 HTTP_PROXY
